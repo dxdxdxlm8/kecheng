@@ -1,0 +1,53 @@
+# Render Blueprint 部署配置
+# 用法：Render 控制台 → New → Blueprint → 连接 GitHub 仓库 dxdxdxlm8/kecheng → 自动按此配置创建。
+# 或在 New → Web Service 手动创建时对照此文件的参数。
+services:
+  - type: web
+    name: kecheng
+    runtime: node
+    region: oregon            # 可选 oregon / virginia / frankfurt（海外节点）
+    plan: free                # 免费档：512MB 内存、共享 CPU、空闲 15 分钟后休眠
+    branch: main
+    buildCommand: pnpm install && pnpm build
+    startCommand: node dist/server.js
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "20"
+      # 以下敏感变量请在 Render 控制台 Environment 中填写（不要写进仓库）
+      - key: SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: LLM_BASE_URL
+        sync: false
+      - key: LLM_API_KEY
+        sync: false
+      - key: LLM_MODEL
+        sync: false
+      - key: LLM_VISION_MODEL
+        sync: false
+      - key: LLM_EXTRA_HEADERS
+        sync: false
+      - key: STORAGE_ENDPOINT
+        sync: false
+      - key: STORAGE_REGION
+        sync: false
+      - key: STORAGE_BUCKET
+        sync: false
+      - key: STORAGE_ACCESS_KEY
+        sync: false
+      - key: STORAGE_SECRET_KEY
+        sync: false
+      - key: STORAGE_PUBLIC_BASE_URL
+        sync: false
+      - key: STORAGE_FORCE_PATH_STYLE
+        sync: false
