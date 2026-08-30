@@ -7,6 +7,20 @@
 - 应用目录：`/opt/kecheng`
 - 服务端口：应用 `5000`，对外 `80`（nginx 反代）
 - 进程管理：pm2（进程名 `kecheng`，已设置开机自启）
+- 域名：`https://shuxueyst.dpdns.org`（DigitalPlat 免费域名 + Cloudflare DNS + Let's Encrypt）
+
+## 入口分工
+域名只有一个，三端靠路径区分（规则在 nginx 与 `next.config.ts` 两处）：
+
+| 访问地址 | 落到哪 | 实现位置 |
+| --- | --- | --- |
+| `https://shuxueyst.dpdns.org/` | 302 → `/student/login`（学生端直达） | nginx `location = /` |
+| `https://shuxueyst.dpdns.org/teacher` | 302 → `/teacher/login` | nginx `location = /teacher` |
+| `https://shuxueyst.dpdns.org/adminlogin` | 原首页（学生端/教师端双入口导航页） | `next.config.ts` rewrite 到 `/` |
+
+注意：应用**没有裸 `/teacher` 路由**（只有 `/teacher/login`、`/teacher/dashboard` 等），
+nginx 那条 `/teacher` 跳转是为了避免教师输错 URL 直接 404，不要删。
+nginx 配置以 `scripts/deploy/nginx-kecheng.conf` 为准，改完务必 `nginx -t` 再 `reload`。
 
 ## 一键部署（新机器）
 ```bash
