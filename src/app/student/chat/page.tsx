@@ -123,6 +123,8 @@ export default function StudentChatPage() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const inputTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const answerTextareaRef = useRef<HTMLTextAreaElement>(null);
   const initializedRef = useRef(false);
   // 记录已自动触发学伴开场的题号，避免重复触发
   const autoTriggeredQuestionRef = useRef<number>(-1);
@@ -617,13 +619,20 @@ export default function StudentChatPage() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      if (showAnswerInput) handleAnswerSubmit();
-      else handleSend();
-    }
+  const autoResize = (el: HTMLTextAreaElement | null) => {
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
   };
+
+  // 输入内容被清空（发送后）或重新填充时，自动调整输入框高度
+  useEffect(() => {
+    autoResize(inputTextareaRef.current);
+  }, [input]);
+
+  useEffect(() => {
+    autoResize(answerTextareaRef.current);
+  }, [answerInput]);
 
   const handleLogout = () => {
     localStorage.removeItem('student_token');
@@ -931,12 +940,14 @@ export default function StudentChatPage() {
                     <div className="flex gap-3">
                       <div className="flex-1 space-y-2">
                         <textarea
+                          ref={answerTextareaRef}
                           value={answerInput}
-                          onChange={(e) => setAnswerInput(e.target.value)}
-                          onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2.5 border border-amber-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none resize-none text-sm"
-                          placeholder="输入你的答案，按 Enter 提交"
-                          rows={2}
+                          onChange={(e) => {
+                            setAnswerInput(e.target.value);
+                            autoResize(e.target);
+                          }}
+                          className="w-full px-4 py-2.5 border border-amber-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none resize-none text-sm min-h-[56px] max-h-40 overflow-y-auto"
+                          placeholder="输入你的答案..."
                           disabled={loading}
                           autoFocus
                         />
@@ -1008,7 +1019,7 @@ export default function StudentChatPage() {
                         </button>
                       </div>
                     )}
-                    <div className="flex gap-3">
+                    <div className="flex gap-3 items-end">
                       <button
                         onClick={() => fileInputRef.current?.click()}
                         disabled={loading}
@@ -1018,10 +1029,13 @@ export default function StudentChatPage() {
                         <ImagePlus className="w-5 h-5" />
                       </button>
                       <textarea
+                        ref={inputTextareaRef}
                         value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none resize-none text-sm"
+                        onChange={(e) => {
+                          setInput(e.target.value);
+                          autoResize(e.target);
+                        }}
+                        className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none resize-none text-sm min-h-[44px] max-h-40 overflow-y-auto"
                         placeholder={
                           phase === 'modeling'
                             ? '和小王讨论建模思路，输入"练习"开始做题...'
@@ -1029,7 +1043,6 @@ export default function StudentChatPage() {
                             ? '和教师交流...'
                             : '和小王讨论...'
                         }
-                        rows={1}
                         disabled={loading}
                       />
                       <button
@@ -1044,10 +1057,6 @@ export default function StudentChatPage() {
                         )}
                       </button>
                     </div>
-                    <p className="text-xs text-gray-400 mt-2">
-                      按 Enter 发送，Shift+Enter 换行
-                      {phase === 'discussing' && ' · 讨论完成后点「我要答题」提交答案'}
-                    </p>
                   </>
                 )}
               </div>
