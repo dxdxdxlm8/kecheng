@@ -645,53 +645,54 @@ export default function StudentChatPage() {
 
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6">
-          <div className="flex justify-between items-center h-14">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+        <div className="max-w-4xl mx-auto px-3 sm:px-6">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 py-2 sm:h-14 sm:flex-nowrap sm:py-0">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center shrink-0">
                 <GraduationCap className="w-4 h-4 text-green-600" />
               </div>
-              <div>
-                <h1 className="text-sm font-bold text-gray-900">课堂学习</h1>
-                <p className="text-xs text-gray-500">{user?.name}</p>
+              <div className="min-w-0">
+                <h1 className="text-sm font-bold text-gray-900 truncate">课堂学习</h1>
+                <p className="text-xs text-gray-500 truncate">{user?.name}</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-end gap-1 sm:gap-2 flex-wrap sm:flex-nowrap w-full sm:w-auto">
               <button
                 onClick={() => setShowHistory(!showHistory)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition"
+                className="flex items-center gap-1 sm:gap-1.5 px-2 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm whitespace-nowrap text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition"
               >
-                <History className="w-4 h-4" />
+                <History className="w-4 h-4 shrink-0" />
                 历史
               </button>
               <button
                 onClick={startNewSession}
                 disabled={loading}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition disabled:opacity-50"
+                className="flex items-center gap-1 sm:gap-1.5 px-2 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm whitespace-nowrap text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition disabled:opacity-50"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-4 h-4 shrink-0" />
                 新对话
               </button>
               <button
                 onClick={() => router.push('/student/summary?regenerate=true')}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition"
+                className="flex items-center gap-1 sm:gap-1.5 px-2 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm whitespace-nowrap text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition"
               >
-                <FileText className="w-4 h-4" />
+                <FileText className="w-4 h-4 shrink-0" />
                 总结
               </button>
               <button
                 onClick={() => router.push('/student/geometry')}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition"
+                className="flex items-center gap-1 sm:gap-1.5 px-2 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm whitespace-nowrap text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition"
                 title="几何实验室 - 动态图形演示"
               >
-                <Circle className="w-4 h-4" />
+                <Circle className="w-4 h-4 shrink-0" />
                 实验
               </button>
               <button
                 onClick={handleLogout}
-                className="flex items-center gap-1 text-sm text-gray-500 hover:text-red-600 transition"
+                className="flex items-center gap-1 px-2 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm whitespace-nowrap text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                title="退出登录"
               >
-                <LogOut className="w-4 h-4" />
+                <LogOut className="w-4 h-4 shrink-0" />
               </button>
             </div>
           </div>
