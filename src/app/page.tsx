@@ -61,10 +61,6 @@ export default function HomePage() {
             </div>
           </Link>
         </div>
-
-        <div className="mt-12 text-center text-sm text-gray-400">
-          <p>教师默认账号: admin@classroom.com / admin123456</p>
-        </div>
       </div>
     </div>
   );
