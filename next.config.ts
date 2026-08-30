@@ -10,6 +10,14 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async rewrites() {
+    return [
+      {
+        source: '/adminlogin',
+        destination: '/',
+      },
+    ];
+  },
 };
 
 export default nextConfig;
