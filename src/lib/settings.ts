@@ -248,8 +248,16 @@ export async function saveSystemSettings(payload: SettingsPayload): Promise<Syst
 
   let error = await runSave(withAsr);
 
-  // 42703: undefined_column —— 数据表还没有 asr_* 列，退回只保存原有字段
-  if (error && error.code === '42703') {
+  // 数据表缺 asr_* 列时退回只保存原有字段，避免连累大模型/存储配置保存失败。
+  // 两种报错都要兜住：
+  //   1) PG 原生 42703 undefined_column（直接走 Postgres）
+  //   2) Supabase PostgREST 的 schema cache 报错（"Could not find the 'x' column
+  //      ... in the schema cache"，code 为 PGRST 系列，不是 42703，但同义）
+  const isMissingColumn =
+    !!error &&
+    (error.code === '42703' ||
+      (typeof error.message === 'string' && /in the schema cache/i.test(error.message)));
+  if (isMissingColumn) {
     console.warn('[settings] system_settings 缺少 asr_* 字段，已跳过语音识别配置持久化');
     error = await runSave(row);
   }

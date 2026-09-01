@@ -1164,36 +1164,8 @@ export default function StudentChatPage() {
                       </div>
                     )}
 
-                    <div className="flex gap-3 items-end">
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={loading}
-                        className="px-3 py-2.5 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-xl transition disabled:opacity-50"
-                        title="上传图片"
-                      >
-                        <ImagePlus className="w-5 h-5" />
-                      </button>
-                      {/* 语音按钮只在建模讨论阶段出现，练习阶段不提供 */}
-                      {phase === 'modeling' && (
-                        <button
-                          onClick={toggleVoice}
-                          disabled={loading || isTranscribing}
-                          className={`px-3 py-2.5 rounded-xl transition disabled:opacity-50 ${
-                            isRecording
-                              ? 'bg-red-50 text-red-600 hover:bg-red-100'
-                              : 'text-gray-500 hover:text-green-600 hover:bg-green-50'
-                          }`}
-                          title={isRecording ? '点击停止录音' : '点击开始说话'}
-                        >
-                          {isTranscribing ? (
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                          ) : isRecording ? (
-                            <Square className="w-5 h-5" />
-                          ) : (
-                            <Mic className="w-5 h-5" />
-                          )}
-                        </button>
-                      )}
+                    {/* 输入卡：输入框独占整行，工具按钮收进底部工具栏，避免窄屏挤压输入框 */}
+                    <div className="rounded-2xl border border-gray-200 bg-white focus-within:ring-2 focus-within:ring-green-500 focus-within:border-transparent transition">
                       <textarea
                         ref={inputTextareaRef}
                         value={input}
@@ -1201,7 +1173,7 @@ export default function StudentChatPage() {
                           setInput(e.target.value);
                           autoResize(e.target);
                         }}
-                        className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none resize-none text-sm min-h-[44px] max-h-40 overflow-y-auto"
+                        className="w-full px-4 pt-3 pb-1 bg-transparent outline-none resize-none text-sm min-h-[44px] max-h-40 overflow-y-auto"
                         placeholder={
                           phase === 'modeling'
                             ? '和小王讨论建模思路，输入"练习"开始做题...'
@@ -1211,17 +1183,51 @@ export default function StudentChatPage() {
                         }
                         disabled={loading}
                       />
-                      <button
-                        onClick={handleSend}
-                        disabled={loading || (!input.trim() && !selectedImage)}
-                        className="px-4 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2"
-                      >
-                        {uploading ? (
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                          <Send className="w-4 h-4" />
-                        )}
-                      </button>
+                      <div className="flex items-center justify-between px-2 pb-2 pt-1">
+                        <div className="flex items-center gap-0.5">
+                          <button
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={loading}
+                            className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition disabled:opacity-50"
+                            title="上传图片"
+                          >
+                            <ImagePlus className="w-5 h-5" />
+                          </button>
+                          {/* 语音按钮只在建模讨论阶段出现，练习阶段不提供 */}
+                          {phase === 'modeling' && (
+                            <button
+                              onClick={toggleVoice}
+                              disabled={loading || isTranscribing}
+                              className={`p-2 rounded-lg transition disabled:opacity-50 ${
+                                isRecording
+                                  ? 'bg-red-50 text-red-600 hover:bg-red-100'
+                                  : 'text-gray-400 hover:text-green-600 hover:bg-green-50'
+                              }`}
+                              title={isRecording ? '点击停止录音' : '点击开始说话'}
+                            >
+                              {isTranscribing ? (
+                                <Loader2 className="w-5 h-5 animate-spin" />
+                              ) : isRecording ? (
+                                <Square className="w-5 h-5" />
+                              ) : (
+                                <Mic className="w-5 h-5" />
+                              )}
+                            </button>
+                          )}
+                        </div>
+                        <button
+                          onClick={handleSend}
+                          disabled={loading || (!input.trim() && !selectedImage)}
+                          className="h-9 px-4 bg-green-600 text-white rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2"
+                        >
+                          {uploading ? (
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <Send className="w-4 h-4" />
+                          )}
+                          发送
+                        </button>
+                      </div>
                     </div>
                   </>
                 )}
