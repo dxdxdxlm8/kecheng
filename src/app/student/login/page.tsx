@@ -2,7 +2,7 @@
 
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { GraduationCap } from 'lucide-react';
+import { GraduationCap, Download } from 'lucide-react';
 
 export default function StudentLoginPage() {
   const router = useRouter();
@@ -44,7 +44,18 @@ export default function StudentLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50 to-emerald-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50 to-emerald-50 flex items-center justify-center p-4 relative">
+      {/* 右上角：安卓客户端下载（nginx 直接托管 /var/www/html/1.apk，不经过 Node） */}
+      <a
+        href="/download/1.apk"
+        download="课堂助手.apk"
+        className="absolute top-4 right-4 inline-flex items-center gap-1.5 px-3 py-2 bg-white/90 border border-gray-200 rounded-xl text-sm text-gray-600 shadow-sm hover:text-green-600 hover:border-green-300 hover:bg-white transition"
+        title="下载安卓客户端"
+      >
+        <Download className="w-4 h-4" />
+        下载 App
+      </a>
+
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
