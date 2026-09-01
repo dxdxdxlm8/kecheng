@@ -493,7 +493,10 @@ export async function POST(request: NextRequest) {
 
   // 8. 保存学生消息（学伴开场触发时不保存）
   if (!isTrigger) {
-    const studentContent = isJudging ? (answer || '') : (message || '[图片]');
+    // 纯图片作答（没打字）也要落一条消息，否则历史记录里图片就丢了
+    const studentContent = isJudging
+      ? (answer || (image_key ? '[图片作答]' : ''))
+      : (message || '[图片]');
     if (studentContent) {
       await supabase.from('interaction_records').insert({
         student_id,
