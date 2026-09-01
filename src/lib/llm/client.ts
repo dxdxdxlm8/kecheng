@@ -1,4 +1,4 @@
-import type { ChatMessage, LlmConfig, LlmRequestOptions } from './types';
+import type { AsrConfig, ChatMessage, LlmConfig, LlmRequestOptions } from './types';
 
 /** 默认超时：120 秒 */
 export const DEFAULT_LLM_TIMEOUT_MS = 120_000;
@@ -19,6 +19,25 @@ export function resolveChatCompletionsUrl(raw: string): string {
 }
 
 export function isLlmConfigured(config: LlmConfig | null | undefined): boolean {
+  return !!config && !!config.baseUrl?.trim() && !!config.model?.trim();
+}
+
+/**
+ * 把 ASR 的 baseUrl 规整成完整的 audio/transcriptions 地址。
+ * 规则与 resolveChatCompletionsUrl 一致：
+ * - 已以 /audio/transcriptions 结尾 → 原样使用
+ * - 路径中已含版本段（/v1 等）→ 补 /audio/transcriptions
+ * - 其余（如 https://api.siliconflow.cn）→ 补 /v1/audio/transcriptions
+ */
+export function resolveAudioTranscriptionsUrl(raw: string): string {
+  let base = (raw ?? '').trim().replace(/\/+$/, '');
+  if (!base) return '';
+  if (/\/audio\/transcriptions$/i.test(base)) return base;
+  if (!/\/v\d+[a-z0-9]*(\/|$)/i.test(base)) base = `${base}/v1`;
+  return `${base}/audio/transcriptions`;
+}
+
+export function isAsrConfigured(config: AsrConfig | null | undefined): boolean {
   return !!config && !!config.baseUrl?.trim() && !!config.model?.trim();
 }
 
@@ -260,5 +279,77 @@ export async function listModels(config: LlmConfig): Promise<string[] | null> {
     return null;
   } finally {
     clearTimeout(timer);
+  }
+}
+
+export interface TranscribeAudioInput {
+  blob: Blob;
+  filename: string;
+}
+
+export interface TranscribeOptions {
+  timeoutMs?: number;
+  signal?: AbortSignal;
+}
+
+/**
+ * 语音转文字（OpenAI 兼容的 /audio/transcriptions）。
+ *
+ * 注意：不能手动设置 Content-Type，否则会丢掉 multipart 的 boundary，
+ * 交给 fetch/undici 自动生成。
+ */
+export async function transcribeAudio(
+  audio: TranscribeAudioInput,
+  config: AsrConfig,
+  options: TranscribeOptions = {}
+): Promise<string> {
+  const url = resolveAudioTranscriptionsUrl(config.baseUrl);
+  if (!url) {
+    throw new Error('未配置语音识别接口地址（Base URL）');
+  }
+  const model = (config.model ?? '').trim();
+  if (!model) {
+    throw new Error('未配置语音识别模型名称（Model）');
+  }
+
+  const form = new FormData();
+  form.append('file', audio.blob, audio.filename);
+  form.append('model', model);
+
+  const headers: Record<string, string> = {};
+  const apiKey = (config.apiKey ?? '').trim();
+  if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+
+  const timeoutMs = options.timeoutMs ?? 60_000;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const onOuterAbort = () => controller.abort();
+  options.signal?.addEventListener('abort', onOuterAbort);
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: form,
+      signal: controller.signal,
+      cache: 'no-store',
+    });
+
+    if (!res.ok) await httpError(res);
+
+    const json = (await res.json()) as { text?: unknown; error?: { message?: string } };
+    if (json.error?.message) {
+      throw new Error(`语音识别返回错误：${json.error.message}`);
+    }
+    if (typeof json.text === 'string') return json.text.trim();
+    return '';
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error(`语音识别请求超时（超过 ${Math.round(timeoutMs / 1000)} 秒）`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+    options.signal?.removeEventListener('abort', onOuterAbort);
   }
 }

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Send, LogOut, FileText, Bot, User, Users, Plus, MessageCircle,
   History, ImagePlus, X, Trash2, GraduationCap, PenLine, Sparkles, CheckCircle2, Circle, AlertCircle,
-  ClipboardList, Loader2,
+  ClipboardList, Loader2, Mic, Square,
 } from 'lucide-react';
 import { MathText } from '@/components/MathText';
 
@@ -102,6 +102,11 @@ export default function StudentChatPage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
 
+  // 语音输入（仅建模讨论阶段可用：练习阶段要求学生自己打字/拍照作答）
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [voiceError, setVoiceError] = useState('');
+
   // 教学流程状态
   const [phase, setPhase] = useState<string>('teaching');
   const [questionIndex, setQuestionIndex] = useState(0);
@@ -121,6 +126,10 @@ export default function StudentChatPage() {
   const [answerUploading, setAnswerUploading] = useState(false);
   const answerFileInputRef = useRef<HTMLInputElement>(null);
 
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const micStreamRef = useRef<MediaStream | null>(null);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputTextareaRef = useRef<HTMLTextAreaElement>(null);
@@ -138,6 +147,16 @@ export default function StudentChatPage() {
   // 组件卸载时清理打字机
   useEffect(() => () => {
     if (typewriterRef.current) clearInterval(typewriterRef.current);
+  }, []);
+
+  // 组件卸载时释放麦克风，避免离开页面后仍在录音
+  useEffect(() => () => {
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== 'inactive') {
+      recorder.onstop = null;
+      recorder.stop();
+    }
+    micStreamRef.current?.getTracks().forEach((track) => track.stop());
   }, []);
 
   useEffect(() => {
@@ -619,6 +638,113 @@ export default function StudentChatPage() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  // ---------------- 语音输入（仅建模讨论阶段） ----------------
+
+  /** 释放麦克风，否则录音结束后标签页会一直显示"正在使用麦克风" */
+  const releaseMic = () => {
+    micStreamRef.current?.getTracks().forEach((track) => track.stop());
+    micStreamRef.current = null;
+  };
+
+  /** 把录到的音频送去识别，识别结果追加进输入框 */
+  const transcribeAndFill = async () => {
+    const chunks = audioChunksRef.current;
+    audioChunksRef.current = [];
+    releaseMic();
+
+    if (chunks.length === 0) {
+      setVoiceError('没有录到声音，请再试一次');
+      return;
+    }
+
+    const blob = new Blob(chunks, { type: chunks[0].type || 'audio/webm' });
+    if (blob.size === 0) {
+      setVoiceError('录音内容为空，请再试一次');
+      return;
+    }
+
+    setIsTranscribing(true);
+    setVoiceError('');
+    try {
+      // 部分 ASR 服务靠文件后缀判断格式，按实际 mime 给后缀
+      const mime = blob.type || '';
+      const ext = mime.includes('mp4') ? 'm4a' : mime.includes('ogg') ? 'ogg' : 'webm';
+      const form = new FormData();
+      form.append('file', blob, `voice.${ext}`);
+
+      const res = await fetch('/api/transcribe', { method: 'POST', body: form });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || '语音识别失败');
+
+      const text = String(json.text ?? '').trim();
+      if (!text) {
+        setVoiceError('没听清，请靠近麦克风再录一次');
+        return;
+      }
+      // 追加而不是覆盖，保留学生已经敲进去的内容
+      setInput((prev) => (prev.trim() ? `${prev.trimEnd()} ${text}` : text));
+    } catch (err) {
+      setVoiceError(err instanceof Error ? err.message : '语音识别失败');
+    } finally {
+      setIsTranscribing(false);
+    }
+  };
+
+  const startRecording = async () => {
+    setVoiceError('');
+    if (typeof window === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      setVoiceError('当前浏览器不支持录音，请换用 Chrome / Edge 或手机自带浏览器');
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      micStreamRef.current = stream;
+
+      // iOS Safari 只支持 audio/mp4，按优先级挑一个浏览器真正支持的
+      const preferred = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'];
+      const mimeType = preferred.find((type) => MediaRecorder.isTypeSupported?.(type));
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+
+      audioChunksRef.current = [];
+      recorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) audioChunksRef.current.push(event.data);
+      };
+      recorder.onstop = () => {
+        void transcribeAndFill();
+      };
+
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+      setIsRecording(true);
+    } catch (err) {
+      releaseMic();
+      const name = err instanceof DOMException ? err.name : '';
+      if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+        setVoiceError('麦克风权限被拒绝，请在浏览器允许麦克风后重试');
+      } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+        setVoiceError('没有检测到麦克风设备');
+      } else {
+        setVoiceError(err instanceof Error ? err.message : '无法开始录音');
+      }
+    }
+  };
+
+  /** 点一下开始录音，再点一下停止并识别 */
+  const toggleVoice = () => {
+    if (isTranscribing) return;
+    if (isRecording) {
+      setIsRecording(false);
+      const recorder = mediaRecorderRef.current;
+      if (recorder && recorder.state !== 'inactive') {
+        recorder.stop(); // 触发 onstop -> transcribeAndFill
+      } else {
+        void transcribeAndFill();
+      }
+    } else {
+      void startRecording();
+    }
+  };
+
   const autoResize = (el: HTMLTextAreaElement | null) => {
     if (!el) return;
     el.style.height = 'auto';
@@ -1019,6 +1145,25 @@ export default function StudentChatPage() {
                         </button>
                       </div>
                     )}
+                    {/* 语音输入状态提示 */}
+                    {isRecording && (
+                      <div className="mb-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600 text-center flex items-center justify-center gap-2">
+                        <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                        正在录音…再次点击麦克风结束
+                      </div>
+                    )}
+                    {isTranscribing && (
+                      <div className="mb-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-600 text-center flex items-center justify-center gap-2">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        正在识别语音…
+                      </div>
+                    )}
+                    {voiceError && (
+                      <div className="mb-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700 text-center">
+                        {voiceError}
+                      </div>
+                    )}
+
                     <div className="flex gap-3 items-end">
                       <button
                         onClick={() => fileInputRef.current?.click()}
@@ -1028,6 +1173,27 @@ export default function StudentChatPage() {
                       >
                         <ImagePlus className="w-5 h-5" />
                       </button>
+                      {/* 语音按钮只在建模讨论阶段出现，练习阶段不提供 */}
+                      {phase === 'modeling' && (
+                        <button
+                          onClick={toggleVoice}
+                          disabled={loading || isTranscribing}
+                          className={`px-3 py-2.5 rounded-xl transition disabled:opacity-50 ${
+                            isRecording
+                              ? 'bg-red-50 text-red-600 hover:bg-red-100'
+                              : 'text-gray-500 hover:text-green-600 hover:bg-green-50'
+                          }`}
+                          title={isRecording ? '点击停止录音' : '点击开始说话'}
+                        >
+                          {isTranscribing ? (
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                          ) : isRecording ? (
+                            <Square className="w-5 h-5" />
+                          ) : (
+                            <Mic className="w-5 h-5" />
+                          )}
+                        </button>
+                      )}
                       <textarea
                         ref={inputTextareaRef}
                         value={input}

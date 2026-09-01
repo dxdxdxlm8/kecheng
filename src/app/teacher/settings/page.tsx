@@ -11,6 +11,7 @@ import {
   Eye,
   EyeOff,
   Loader2,
+  Mic,
   Save,
   Sparkles,
   Wand2,
@@ -57,6 +58,19 @@ const EMPTY_STORAGE: StorageFormState = {
   secretKey: '',
   publicBaseUrl: '',
   forcePathStyle: true,
+};
+
+/** 语音识别：学生端语音输入转文字用，独立于大模型服务商 */
+interface AsrFormState {
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+}
+
+const EMPTY_ASR: AsrFormState = {
+  baseUrl: '',
+  apiKey: '',
+  model: '',
 };
 
 /** 常见 OpenAI 兼容服务的快捷填充 */
@@ -112,16 +126,20 @@ export default function TeacherSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testingLlm, setTestingLlm] = useState(false);
+  const [testingAsr, setTestingAsr] = useState(false);
   const [testingStorage, setTestingStorage] = useState(false);
   const [llmTest, setLlmTest] = useState<TestResult | null>(null);
+  const [asrTest, setAsrTest] = useState<TestResult | null>(null);
   const [storageTest, setStorageTest] = useState<TestResult | null>(null);
   const [showApiKey, setShowApiKey] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showStorage, setShowStorage] = useState(false);
+  const [showAsr, setShowAsr] = useState(true);
   const [availableModels, setAvailableModels] = useState<string[] | null>(null);
   const [toast, setToast] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
   const [llm, setLlm] = useState<LlmFormState>(EMPTY_LLM);
+  const [asr, setAsr] = useState<AsrFormState>(EMPTY_ASR);
   const [storage, setStorage] = useState<StorageFormState>(EMPTY_STORAGE);
   const [meta, setMeta] = useState<{
     resolvedUrl: string;
@@ -150,6 +168,11 @@ export default function TeacherSettingsPage() {
         maxTokens: data.llm.maxTokens === null ? '' : String(data.llm.maxTokens),
         timeoutMs: data.llm.timeoutMs === null ? '' : String(data.llm.timeoutMs),
         extraHeaders: data.llm.extraHeaders ? JSON.stringify(data.llm.extraHeaders, null, 2) : '',
+      });
+      setAsr({
+        baseUrl: data.asr?.baseUrl ?? '',
+        apiKey: data.asr?.apiKey ?? '',
+        model: data.asr?.model ?? '',
       });
       setStorage({
         endpoint: data.storage.endpoint ?? '',
@@ -214,6 +237,11 @@ export default function TeacherSettingsPage() {
         timeoutMs: parseNumber(llm.timeoutMs),
         extraHeaders,
       },
+      asr: {
+        baseUrl: asr.baseUrl,
+        apiKey: asr.apiKey,
+        model: asr.model,
+      },
       storage: {
         endpoint: storage.endpoint,
         region: storage.region,
@@ -246,9 +274,11 @@ export default function TeacherSettingsPage() {
     }
   };
 
-  const handleTest = async (scope: 'llm' | 'storage') => {
-    const setRunning = scope === 'llm' ? setTestingLlm : setTestingStorage;
-    const setResult = scope === 'llm' ? setLlmTest : setStorageTest;
+  const handleTest = async (scope: 'llm' | 'asr' | 'storage') => {
+    const setRunning =
+      scope === 'llm' ? setTestingLlm : scope === 'asr' ? setTestingAsr : setTestingStorage;
+    const setResult =
+      scope === 'llm' ? setLlmTest : scope === 'asr' ? setAsrTest : setStorageTest;
     setRunning(true);
     setResult(null);
     try {
@@ -265,7 +295,9 @@ export default function TeacherSettingsPage() {
       const message =
         scope === 'llm'
           ? `连接成功 · 模型 ${json.model} · 耗时 ${json.latencyMs}ms${json.sample ? ` · 回复「${json.sample}」` : ''}`
-          : '存储可用，探针文件已写入并生成访问链接';
+          : scope === 'asr'
+            ? `连接成功 · 模型 ${json.model} · 耗时 ${json.latencyMs}ms${json.note ? ` · ${json.note}` : ''}`
+            : '存储可用，探针文件已写入并生成访问链接';
       setResult({ ok: true, message, models: json.availableModels ?? null });
       if (scope === 'llm' && Array.isArray(json.availableModels)) {
         setAvailableModels(json.availableModels);
@@ -716,10 +748,107 @@ export default function TeacherSettingsPage() {
               )}
             </section>
 
+            {/* 语音识别配置 */}
+            <section className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Mic className="w-4 h-4 text-slate-600" />
+                  <h2 className="font-semibold text-gray-900">语音识别配置</h2>
+                  <span className="text-xs text-gray-400">（学生端语音输入转文字）</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAsr((v) => !v)}
+                  className="text-sm text-slate-600 hover:text-slate-900"
+                >
+                  {showAsr ? '收起' : '展开配置'}
+                </button>
+              </div>
+
+              {showAsr && (
+                <div className="p-6 space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        接口地址
+                      </label>
+                      <input
+                        value={asr.baseUrl}
+                        onChange={(e) => setAsr({ ...asr, baseUrl: e.target.value })}
+                        className={inputClass}
+                        placeholder="https://api.siliconflow.cn/v1"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        模型名称
+                      </label>
+                      <input
+                        value={asr.model}
+                        onChange={(e) => setAsr({ ...asr, model: e.target.value })}
+                        className={inputClass}
+                        placeholder="FunAudioLLM/SenseVoiceSmall"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">API Key</label>
+                    <input
+                      type="password"
+                      value={asr.apiKey}
+                      onChange={(e) => setAsr({ ...asr, apiKey: e.target.value })}
+                      className={inputClass}
+                      placeholder="sk-..."
+                      autoComplete="off"
+                    />
+                    <p className="mt-1 text-xs text-gray-400">
+                      默认使用硅基流动 SenseVoiceSmall（国内直连，有免费额度）。未填写 Key
+                      时学生端不显示语音按钮。
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => handleTest('asr')}
+                      disabled={testingAsr || !asr.baseUrl.trim() || !asr.model.trim()}
+                      className="flex items-center gap-2 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg text-sm hover:bg-slate-50 transition disabled:opacity-50"
+                    >
+                      {testingAsr ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Wand2 className="w-4 h-4" />
+                      )}
+                      测试语音识别
+                    </button>
+                    <span className="text-xs text-gray-400">
+                      发送一段测试音验证接口与 Key（不含语音，返回空文本属正常）
+                    </span>
+                  </div>
+
+                  {asrTest && (
+                    <div
+                      className={`flex items-start gap-2 text-sm rounded-lg px-3 py-2 ${
+                        asrTest.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
+                      }`}
+                    >
+                      {asrTest.ok ? (
+                        <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
+                      ) : (
+                        <XCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                      )}
+                      <span className="break-all">{asrTest.message}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </section>
+
             <p className="text-xs text-gray-400 leading-relaxed pb-4">
               说明：配置优先读取数据库中的「系统设置」，未配置时回退读取服务端环境变量（LLM_BASE_URL、
-              LLM_API_KEY、LLM_MODEL 等）。数据库地址与密钥仍通过 .env.local 中的 SUPABASE_URL /
-              SUPABASE_ANON_KEY 提供，不在此处填写。
+              LLM_API_KEY、LLM_MODEL、ASR_BASE_URL、ASR_API_KEY、ASR_MODEL 等）。数据库地址与密钥仍通过
+              .env.local 中的 SUPABASE_URL / SUPABASE_ANON_KEY 提供，不在此处填写。
             </p>
           </>
         )}

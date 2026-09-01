@@ -5,7 +5,7 @@ import {
   type SettingsPayload,
   type SystemSettings,
 } from '@/lib/settings';
-import { resolveChatCompletionsUrl } from '@/lib/llm/client';
+import { resolveAudioTranscriptionsUrl, resolveChatCompletionsUrl } from '@/lib/llm/client';
 import { isStorageConfigured } from '@/lib/storage/object-storage';
 
 const MASK_CHAR = '•';
@@ -31,6 +31,13 @@ export interface SettingsResponse {
       maxTokens: number | null;
       timeoutMs: number | null;
       extraHeaders: Record<string, string> | null;
+      resolvedUrl: string;
+      apiKeySet: boolean;
+    };
+    asr: {
+      baseUrl: string;
+      apiKey: string;
+      model: string;
       resolvedUrl: string;
       apiKeySet: boolean;
     };
@@ -66,6 +73,13 @@ function toResponse(settings: SystemSettings): SettingsResponse {
         resolvedUrl: resolveChatCompletionsUrl(settings.llm.baseUrl ?? ''),
         apiKeySet: !!settings.llm.apiKey,
       },
+      asr: {
+        baseUrl: settings.asr?.baseUrl ?? '',
+        apiKey: maskSecret(settings.asr?.apiKey),
+        model: settings.asr?.model ?? '',
+        resolvedUrl: resolveAudioTranscriptionsUrl(settings.asr?.baseUrl ?? ''),
+        apiKeySet: !!settings.asr?.apiKey,
+      },
       storage: {
         endpoint: settings.storage.endpoint ?? '',
         region: settings.storage.region ?? '',
@@ -100,6 +114,7 @@ export async function PUT(request: NextRequest) {
     const current = await getSystemSettings();
 
     const llm = body.llm ?? ({} as Partial<SettingsPayload['llm']>);
+    const asr = body.asr ?? ({} as Partial<SettingsPayload['asr']>);
     const storage = body.storage ?? ({} as Partial<SettingsPayload['storage']>);
 
     let extraHeaders = current.llm.extraHeaders ?? null;
@@ -121,6 +136,14 @@ export async function PUT(request: NextRequest) {
         maxTokens: llm.maxTokens === undefined ? (current.llm.maxTokens ?? null) : llm.maxTokens,
         timeoutMs: llm.timeoutMs === undefined ? (current.llm.timeoutMs ?? null) : llm.timeoutMs,
         extraHeaders,
+      },
+      asr: {
+        baseUrl: (asr.baseUrl ?? current.asr?.baseUrl ?? '').trim(),
+        // 掩码值代表"保持不变"
+        apiKey: isMasked(asr.apiKey)
+          ? (current.asr?.apiKey ?? '')
+          : ((asr.apiKey ?? current.asr?.apiKey ?? '') as string).trim(),
+        model: (asr.model ?? current.asr?.model ?? '').trim(),
       },
       storage: {
         endpoint: (storage.endpoint ?? current.storage.endpoint ?? '').trim(),

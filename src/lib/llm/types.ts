@@ -44,6 +44,21 @@ export interface LlmConfig {
   extraHeaders?: Record<string, string> | null;
 }
 
+/**
+ * 语音识别（ASR）配置。
+ *
+ * 与大模型解耦：ASR 走独立的服务商，默认硅基流动 SenseVoiceSmall。
+ * 留空的字段会回退到大模型配置的 baseUrl / apiKey，减少重复填写。
+ */
+export interface AsrConfig {
+  /** 接口地址，可填到 /v1 或完整到 /audio/transcriptions */
+  baseUrl: string;
+  /** API Key；留空时回退到大模型的 apiKey */
+  apiKey: string;
+  /** 语音识别模型，如 FunAudioLLM/SenseVoiceSmall */
+  model: string;
+}
+
 export interface LlmRequestOptions {
   /** 覆盖模型 */
   model?: string;

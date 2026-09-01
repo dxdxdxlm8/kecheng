@@ -1,10 +1,15 @@
 import { DEFAULT_LLM_TIMEOUT_MS } from './llm/client';
-import type { LlmConfig } from './llm/types';
+import type { AsrConfig, LlmConfig } from './llm/types';
 import type { StorageConfig } from './storage/object-storage';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 
+/** 语音识别默认值：硅基流动 SenseVoiceSmall（国内直连，有免费额度） */
+export const DEFAULT_ASR_BASE_URL = 'https://api.siliconflow.cn/v1';
+export const DEFAULT_ASR_MODEL = 'FunAudioLLM/SenseVoiceSmall';
+
 export interface SystemSettings {
   llm: LlmConfig;
+  asr: AsrConfig;
   storage: StorageConfig;
   updatedAt: string | null;
   /** database: 来自 system_settings 表 | env: 来自环境变量 | empty: 未配置 */
@@ -61,6 +66,11 @@ function settingsFromEnv(): SystemSettings {
       timeoutMs: envNumber('LLM_TIMEOUT_MS') ?? DEFAULT_LLM_TIMEOUT_MS,
       extraHeaders: parseHeaders(process.env.LLM_EXTRA_HEADERS),
     },
+    asr: {
+      baseUrl: process.env.ASR_BASE_URL || DEFAULT_ASR_BASE_URL,
+      apiKey: process.env.ASR_API_KEY ?? '',
+      model: process.env.ASR_MODEL || DEFAULT_ASR_MODEL,
+    },
     storage: {
       endpoint: process.env.STORAGE_ENDPOINT ?? '',
       region: process.env.STORAGE_REGION ?? 'us-east-1',
@@ -84,6 +94,9 @@ interface SettingsRow {
   llm_max_tokens?: number | string | null;
   llm_timeout_ms?: number | string | null;
   llm_extra_headers?: string | Record<string, string> | null;
+  asr_base_url?: string | null;
+  asr_api_key?: string | null;
+  asr_model?: string | null;
   storage_endpoint?: string | null;
   storage_region?: string | null;
   storage_bucket?: string | null;
@@ -105,6 +118,11 @@ function mergeRow(row: SettingsRow, base: SystemSettings): SystemSettings {
       maxTokens: numOrNull(row.llm_max_tokens) ?? base.llm.maxTokens,
       timeoutMs: numOrNull(row.llm_timeout_ms) ?? base.llm.timeoutMs,
       extraHeaders: parseHeaders(row.llm_extra_headers) ?? base.llm.extraHeaders,
+    },
+    asr: {
+      baseUrl: strOrNull(row.asr_base_url) ?? base.asr.baseUrl,
+      apiKey: strOrNull(row.asr_api_key) ?? base.asr.apiKey,
+      model: strOrNull(row.asr_model) ?? base.asr.model,
     },
     storage: {
       endpoint: strOrNull(row.storage_endpoint) ?? base.storage.endpoint,
@@ -175,6 +193,7 @@ export async function getSystemSettings(): Promise<SystemSettings> {
 
 export interface SettingsPayload {
   llm: LlmConfig;
+  asr: AsrConfig;
   storage: StorageConfig;
 }
 
@@ -203,19 +222,36 @@ export async function saveSystemSettings(payload: SettingsPayload): Promise<Syst
     updated_at: new Date().toISOString(),
   };
 
+  // 语音识别字段：未执行 asr_* 迁移时单独降级，避免连累大模型/存储配置保存失败
+  const withAsr = {
+    ...row,
+    asr_base_url: payload.asr?.baseUrl?.trim() || null,
+    asr_api_key: payload.asr?.apiKey?.trim() || null,
+    asr_model: payload.asr?.model?.trim() || null,
+  };
+
   const { data: existing } = await supabase
     .from(SETTINGS_TABLE)
     .select('id')
     .limit(1);
 
-  let error: { message: string } | null = null;
+  type PgError = { message: string; code?: string } | null;
 
-  if (existing && existing.length > 0) {
-    const res = await supabase.from(SETTINGS_TABLE).update(row).eq('id', existing[0].id);
-    error = res.error;
-  } else {
-    const res = await supabase.from(SETTINGS_TABLE).insert(row);
-    error = res.error;
+  const runSave = async (target: Record<string, unknown>): Promise<PgError> => {
+    if (existing && existing.length > 0) {
+      const res = await supabase.from(SETTINGS_TABLE).update(target).eq('id', existing[0].id);
+      return res.error as PgError;
+    }
+    const res = await supabase.from(SETTINGS_TABLE).insert(target);
+    return res.error as PgError;
+  };
+
+  let error = await runSave(withAsr);
+
+  // 42703: undefined_column —— 数据表还没有 asr_* 列，退回只保存原有字段
+  if (error && error.code === '42703') {
+    console.warn('[settings] system_settings 缺少 asr_* 字段，已跳过语音识别配置持久化');
+    error = await runSave(row);
   }
 
   if (error) {
