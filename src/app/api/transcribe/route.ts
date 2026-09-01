@@ -13,6 +13,11 @@ const MAX_AUDIO_BYTES = 10 * 1024 * 1024;
  */
 export async function POST(request: NextRequest) {
   try {
+    const contentType = request.headers.get('content-type') ?? '';
+    if (!contentType.includes('multipart/form-data')) {
+      return NextResponse.json({ error: '请求格式错误：缺少音频文件' }, { status: 400 });
+    }
+
     const form = await request.formData();
     const file = form.get('file');
 
