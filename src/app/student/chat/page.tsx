@@ -8,6 +8,7 @@ import {
   ClipboardList, Loader2, Mic, Square,
 } from 'lucide-react';
 import { MathText } from '@/components/MathText';
+import { compressImageForUpload } from '@/lib/image/compress';
 
 type Role = 'student' | 'teacher' | 'companion';
 
@@ -101,6 +102,8 @@ export default function StudentChatPage() {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  // 图片压缩中（手机高清照压到短边 1080 需要一点时间，期间禁用按钮防重复点）
+  const [compressingImage, setCompressingImage] = useState(false);
 
   // 语音输入（仅建模讨论阶段可用：练习阶段要求学生自己打字/拍照作答）
   const [isRecording, setIsRecording] = useState(false);
@@ -596,14 +599,20 @@ export default function StudentChatPage() {
     );
   };
 
-  // 答题图片选择
-  const handleAnswerFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // 答题图片选择（压缩到短边 1080，避免视觉模型报 2048x2048 超限）
+  const handleAnswerFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setAnswerImage(file);
-    const reader = new FileReader();
-    reader.onload = () => setAnswerImagePreview(reader.result as string);
-    reader.readAsDataURL(file);
+    setCompressingImage(true);
+    try {
+      const optimized = await compressImageForUpload(file);
+      setAnswerImage(optimized);
+      const reader = new FileReader();
+      reader.onload = () => setAnswerImagePreview(reader.result as string);
+      reader.readAsDataURL(optimized);
+    } finally {
+      setCompressingImage(false);
+    }
   };
 
   const scrollToBottom = useCallback(() => {
@@ -614,7 +623,7 @@ export default function StudentChatPage() {
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
@@ -626,10 +635,17 @@ export default function StudentChatPage() {
       alert('图片大小不能超过 10MB');
       return;
     }
-    setSelectedImage(file);
-    const reader = new FileReader();
-    reader.onload = (ev) => setImagePreview(ev.target?.result as string);
-    reader.readAsDataURL(file);
+    // 压缩到短边 1080（长边不超过 2048），否则视觉模型会拒绝超大原图
+    setCompressingImage(true);
+    try {
+      const optimized = await compressImageForUpload(file);
+      setSelectedImage(optimized);
+      const reader = new FileReader();
+      reader.onload = (ev) => setImagePreview(ev.target?.result as string);
+      reader.readAsDataURL(optimized);
+    } finally {
+      setCompressingImage(false);
+    }
   };
 
   const clearImage = () => {
@@ -1095,11 +1111,11 @@ export default function StudentChatPage() {
                       <div className="flex flex-col gap-2">
                         <button
                           onClick={() => answerFileInputRef.current?.click()}
-                          disabled={loading || answerUploading}
+                          disabled={loading || answerUploading || compressingImage}
                           className="w-11 h-11 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 disabled:opacity-50 transition flex items-center justify-center text-gray-600"
                           title="上传作答图片"
                         >
-                          {answerUploading ? (
+                          {answerUploading || compressingImage ? (
                             <div className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
                           ) : (
                             <ImagePlus className="w-5 h-5" />
@@ -1158,6 +1174,12 @@ export default function StudentChatPage() {
                         正在识别语音…
                       </div>
                     )}
+                    {compressingImage && (
+                      <div className="mb-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-600 text-center flex items-center justify-center gap-2">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        正在处理图片…
+                      </div>
+                    )}
                     {voiceError && (
                       <div className="mb-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700 text-center">
                         {voiceError}
@@ -1187,11 +1209,15 @@ export default function StudentChatPage() {
                         <div className="flex items-center gap-0.5">
                           <button
                             onClick={() => fileInputRef.current?.click()}
-                            disabled={loading}
+                            disabled={loading || compressingImage}
                             className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition disabled:opacity-50"
                             title="上传图片"
                           >
-                            <ImagePlus className="w-5 h-5" />
+                            {compressingImage ? (
+                              <Loader2 className="w-5 h-5 animate-spin" />
+                            ) : (
+                              <ImagePlus className="w-5 h-5" />
+                            )}
                           </button>
                           {/* 语音按钮只在建模讨论阶段出现，练习阶段不提供 */}
                           {phase === 'modeling' && (
