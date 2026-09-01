@@ -116,6 +116,8 @@ export const interactionRecords = pgTable(
     session_id: varchar("session_id", { length: 64 }).notNull(),
     role: varchar("role", { length: 20 }).notNull(),
     content: text("content").notNull(),
+    // 学生消息携带的上传图片（对象存储 key），历史记录回显用
+    image_key: varchar("image_key", { length: 512 }),
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [

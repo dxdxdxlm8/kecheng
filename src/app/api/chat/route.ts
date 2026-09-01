@@ -433,6 +433,7 @@ export async function POST(request: NextRequest) {
         session_id,
         role: 'student',
         content: studentContent,
+        image_key: image_key || null,
       });
     }
     await supabase.from('interaction_records').insert({
@@ -499,6 +500,7 @@ export async function POST(request: NextRequest) {
         session_id,
         role: 'student',
         content: studentContent,
+        image_key: image_key || null,
       });
     }
   }

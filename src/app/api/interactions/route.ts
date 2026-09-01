@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { getSystemSettings } from '@/lib/settings';
+import { generatePresignedUrl, isStorageConfigured } from '@/lib/storage/object-storage';
 
 // 将旧 role 值归一化为新双 Agent 体系
 function normalizeRole(role: string): string {
@@ -15,6 +17,13 @@ function normalizeRole(role: string): string {
     default:
       return role;
   }
+}
+
+interface InteractionRow {
+  role: string;
+  image_key?: string | null;
+  image_url?: string;
+  [k: string]: unknown;
 }
 
 export async function GET(request: NextRequest) {
@@ -39,10 +48,37 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query;
     if (error) throw new Error(`查询互动记录失败: ${error.message}`);
 
-    const normalized = (data || []).map((item: { role: string; [k: string]: unknown }) => ({
+    const normalized = (data || []).map((item: InteractionRow) => ({
       ...item,
-      role: normalizeRole(item.role as string),
-    }));
+      role: normalizeRole(item.role),
+    })) as InteractionRow[];
+
+    // 学生消息携带图片时，生成可用的图片 URL 供历史记录回显。
+    // 预签名 URL 有效期 1 小时，但历史每次打开都会重新请求本接口，现取现用不会过期。
+    const hasImageRows = normalized.some((item) => item.image_key);
+    if (hasImageRows) {
+      try {
+        const settings = await getSystemSettings();
+        if (isStorageConfigured(settings.storage)) {
+          await Promise.all(
+            normalized.map(async (item) => {
+              const key = item.image_key;
+              if (!key) return;
+              try {
+                item.image_url = await generatePresignedUrl(
+                  { key, expireTime: 3600 },
+                  settings.storage
+                );
+              } catch (e) {
+                console.error('[interactions] 生成图片 URL 失败:', key, e);
+              }
+            })
+          );
+        }
+      } catch (e) {
+        console.error('[interactions] 读取存储配置失败，跳过图片回显:', e);
+      }
+    }
 
     return NextResponse.json({ data: normalized });
   } catch (error) {

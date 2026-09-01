@@ -246,10 +246,14 @@ export default function StudentChatPage() {
       const stateData = await stateRes.json();
 
       const records = interData.data || [];
-      const loadedMessages: Message[] = records.map((r: { role: string; content: string }) => ({
-        role: (r.role === 'user' ? 'student' : r.role === 'assistant' ? 'teacher' : r.role) as Role,
-        content: r.content,
-      }));
+      const loadedMessages: Message[] = records.map(
+        (r: { role: string; content: string; image_url?: string }) => ({
+          role: (r.role === 'user' ? 'student' : r.role === 'assistant' ? 'teacher' : r.role) as Role,
+          content: r.content,
+          // 学生消息携带的作答/聊天图片（接口现生成的预签名 URL）
+          imagePreview: r.image_url || undefined,
+        })
+      );
 
       setSessionId(sid);
       setMessages(loadedMessages);
@@ -546,7 +550,7 @@ export default function StudentChatPage() {
     setMessages(prev => [...prev, {
       role: 'student',
       content: answerImage ? `【我的答案】${answer || '（已上传图片作答）'}` : `【我的答案】${answer}`,
-      image: answerImagePreview || undefined,
+      imagePreview: answerImagePreview || undefined,
     }]);
     setAnswerInput('');
     setShowAnswerInput(false);
