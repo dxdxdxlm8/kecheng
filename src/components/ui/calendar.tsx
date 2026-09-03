@@ -34,8 +34,8 @@ function Calendar({
       showOutsideDays={showOutsideDays}
       className={cn(
         "bg-background group/calendar p-3 [--cell-size:2rem] [[data-slot=card-content]_&]:bg-transparent [[data-slot=popover-content]_&]:bg-transparent",
-        String.raw`rtl:**:[.rdp-button\_next>svg]:rotate-180`,
-        String.raw`rtl:**:[.rdp-button\_previous>svg]:rotate-180`,
+        String.raw`rtl:[.rdp-button\_next>svg]:rotate-180`,
+        String.raw`rtl:[.rdp-button\_previous>svg]:rotate-180`,
         className
       )}
       captionLayout={captionLayout}
@@ -74,7 +74,7 @@ function Calendar({
           defaultClassNames.dropdowns
         ),
         dropdown_root: cn(
-          "relative has-focus:border-ring border border-input shadow-sm has-focus:ring-ring/50 has-focus:ring-[3px] rounded-md",
+          "relative has-[:focus]:border-ring border border-input shadow-sm has-[:focus]:ring-ring/50 has-[:focus]:ring-[3px] rounded-md",
           defaultClassNames.dropdown_root
         ),
         dropdown: cn(
