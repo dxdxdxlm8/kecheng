@@ -329,21 +329,21 @@ function StudentSummaryContent() {
             {/* 课堂统计 - 仅在已有 summary（非流式中或完成后）显示 */}
             {summary && !isStreaming && (
               <div className="grid grid-cols-3 gap-3">
-                <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm flex flex-col items-center justify-center">
+                <div className="bg-white rounded-xl p-4 border border-gray-100 shadow flex flex-col items-center justify-center">
                   <div className="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center mb-2">
                     <ClipboardList className="w-4 h-4 text-blue-600" />
                   </div>
                   <div className="text-2xl font-bold text-gray-900">{qTotal}</div>
                   <div className="text-xs text-gray-500 mt-0.5">答题总数</div>
                 </div>
-                <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm flex flex-col items-center justify-center">
+                <div className="bg-white rounded-xl p-4 border border-gray-100 shadow flex flex-col items-center justify-center">
                   <div className="w-9 h-9 bg-green-50 rounded-lg flex items-center justify-center mb-2">
                     <CheckCircle2 className="w-4 h-4 text-green-600" />
                   </div>
                   <div className="text-2xl font-bold text-gray-900">{qCorrect}</div>
                   <div className="text-xs text-gray-500 mt-0.5">答对数</div>
                 </div>
-                <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm flex flex-col items-center justify-center">
+                <div className="bg-white rounded-xl p-4 border border-gray-100 shadow flex flex-col items-center justify-center">
                   <div className="w-9 h-9 bg-amber-50 rounded-lg flex items-center justify-center mb-2">
                     <PercentCircle className="w-4 h-4 text-amber-600" />
                   </div>
@@ -356,9 +356,9 @@ function StudentSummaryContent() {
             )}
 
             {/* 课堂表现总览 - 突出显示 */}
-            <div className="rounded-xl p-6 border border-green-200 shadow-sm bg-gradient-to-br from-green-50 via-white to-emerald-50">
+            <div className="rounded-xl p-6 border border-green-200 shadow bg-gradient-to-br from-green-50 via-white to-emerald-50">
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-9 h-9 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center shadow-sm">
+                <div className="w-9 h-9 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center shadow">
                   <Sparkles className="w-5 h-5 text-white" />
                 </div>
                 <h3 className="font-semibold text-gray-900">课堂表现总览</h3>
@@ -369,7 +369,7 @@ function StudentSummaryContent() {
             </div>
 
             {/* 学习优点 */}
-            <div className="bg-white rounded-xl p-6 border border-green-100 shadow-sm">
+            <div className="bg-white rounded-xl p-6 border border-green-100 shadow">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
                   <ThumbsUp className="w-4 h-4 text-green-600" />
@@ -382,7 +382,7 @@ function StudentSummaryContent() {
             </div>
 
             {/* 需要改进 */}
-            <div className="bg-white rounded-xl p-6 border border-amber-100 shadow-sm">
+            <div className="bg-white rounded-xl p-6 border border-amber-100 shadow">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
                   <AlertCircle className="w-4 h-4 text-amber-600" />
@@ -395,7 +395,7 @@ function StudentSummaryContent() {
             </div>
 
             {/* 进步建议 */}
-            <div className="bg-white rounded-xl p-6 border border-blue-100 shadow-sm">
+            <div className="bg-white rounded-xl p-6 border border-blue-100 shadow">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
                   <Lightbulb className="w-4 h-4 text-blue-600" />
@@ -408,7 +408,7 @@ function StudentSummaryContent() {
             </div>
 
             {/* 小王讨论情况 */}
-            <div className="bg-white rounded-xl p-6 border border-purple-100 shadow-sm">
+            <div className="bg-white rounded-xl p-6 border border-purple-100 shadow">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
                   <Users className="w-4 h-4 text-purple-600" />

@@ -200,7 +200,7 @@ export default function StudentsManagePage() {
         )}
 
         {/* Add student */}
-        <div className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm mb-6">
+        <div className="bg-white rounded-xl p-6 border border-gray-100 shadow mb-6">
           {showBatch ? (
             <div className="space-y-3">
               <label className="block text-sm font-medium text-gray-700">批量添加学生姓名（每行一个，或用逗号分隔）</label>
@@ -248,7 +248,7 @@ export default function StudentsManagePage() {
         </div>
 
         {/* Student list */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
+        <div className="bg-white rounded-xl border border-gray-100 shadow">
           <div className="p-4 border-b border-gray-100">
             <h2 className="text-sm font-semibold text-gray-700">已预设学生（{students.length}人）</h2>
             <p className="text-xs text-gray-400 mt-1">只有在此列表中的学生才能登录学生端</p>

@@ -95,7 +95,7 @@ export default function TeacherDashboardPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm">
+          <div className="bg-white rounded-xl p-6 border border-gray-100 shadow">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
                 <MessageSquare className="w-5 h-5 text-blue-600" />
@@ -106,7 +106,7 @@ export default function TeacherDashboardPage() {
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm">
+          <div className="bg-white rounded-xl p-6 border border-gray-100 shadow">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
                 <BarChart3 className="w-5 h-5 text-green-600" />
@@ -117,7 +117,7 @@ export default function TeacherDashboardPage() {
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm">
+          <div className="bg-white rounded-xl p-6 border border-gray-100 shadow">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
                 <FileText className="w-5 h-5 text-purple-600" />
@@ -139,7 +139,7 @@ export default function TeacherDashboardPage() {
             <Link
               key={item.href}
               href={item.href}
-              className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition-all group"
+              className="bg-white rounded-xl p-6 border border-gray-100 shadow hover:shadow-md hover:border-gray-200 transition-all group"
             >
               <div className="flex items-start gap-4">
                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${colorClass.bg}`}>

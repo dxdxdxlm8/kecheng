@@ -982,7 +982,7 @@ export default function StudentChatPage() {
                             ? 'bg-blue-600 text-white rounded-br-md'
                             : isCompanion
                             ? 'bg-purple-50 border border-purple-100 text-gray-900 rounded-bl-md'
-                            : 'bg-white border border-green-100 text-gray-900 rounded-bl-md shadow-sm'
+                            : 'bg-white border border-green-100 text-gray-900 rounded-bl-md shadow'
                         }`}>
                           {msg.imagePreview && (
                             <div className="mb-2">
@@ -1022,7 +1022,7 @@ export default function StudentChatPage() {
 
               {/* 练习评价 */}
               {finished && (
-                <div className="mt-6 bg-white border border-blue-100 rounded-2xl p-5 shadow-sm">
+                <div className="mt-6 bg-white border border-blue-100 rounded-2xl p-5 shadow">
                   <div className="flex items-center gap-3 mb-3">
                     <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
                       <ClipboardList className="w-4 h-4 text-blue-600" />

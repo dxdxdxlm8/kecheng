@@ -270,7 +270,7 @@ export default function GeometryLabPage() {
           {/* 右侧：控制面板 */}
           <div className="w-full lg:w-80 space-y-3">
             {/* 圆参数 */}
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-xl border border-gray-100 shadow overflow-hidden">
               <button
                 onClick={() => setShowCirclePanel(!showCirclePanel)}
                 className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition"
@@ -296,7 +296,7 @@ export default function GeometryLabPage() {
             </div>
 
             {/* 直线参数 */}
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-xl border border-gray-100 shadow overflow-hidden">
               <button
                 onClick={() => setShowLinePanel(!showLinePanel)}
                 className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition"
@@ -322,7 +322,7 @@ export default function GeometryLabPage() {
             </div>
 
             {/* 动画演示 */}
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-xl border border-gray-100 shadow overflow-hidden">
               <button
                 onClick={() => setShowAnimPanel(!showAnimPanel)}
                 className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition"
@@ -363,7 +363,7 @@ export default function GeometryLabPage() {
             </div>
 
             {/* 知识点提示 */}
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+            <div className="bg-white rounded-xl border border-gray-100 shadow p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Info className="w-4 h-4 text-indigo-500" />
                 <span className="text-sm font-semibold text-gray-700">判定方法</span>

@@ -376,7 +376,7 @@ export default function TeacherSettingsPage() {
           <>
             {/* 状态概览 */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+              <div className="bg-white rounded-xl p-4 border border-gray-100 shadow">
                 <div className="flex items-center gap-2 mb-1">
                   {llmReady ? (
                     <CheckCircle2 className="w-4 h-4 text-emerald-600" />
@@ -389,7 +389,7 @@ export default function TeacherSettingsPage() {
                   {llmReady ? `已配置 ${llm.model}` : '未配置，学生端对话不可用'}
                 </p>
               </div>
-              <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+              <div className="bg-white rounded-xl p-4 border border-gray-100 shadow">
                 <div className="flex items-center gap-2 mb-1">
                   {storage.endpoint && storage.bucket ? (
                     <CheckCircle2 className="w-4 h-4 text-emerald-600" />
@@ -407,7 +407,7 @@ export default function TeacherSettingsPage() {
             </div>
 
             {/* 大模型配置 */}
-            <section className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+            <section className="bg-white rounded-xl border border-gray-100 shadow overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
                 <Cpu className="w-4 h-4 text-slate-600" />
                 <h2 className="font-semibold text-gray-900">大模型配置</h2>
@@ -618,7 +618,7 @@ export default function TeacherSettingsPage() {
             </section>
 
             {/* 对象存储配置 */}
-            <section className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+            <section className="bg-white rounded-xl border border-gray-100 shadow overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Database className="w-4 h-4 text-slate-600" />
@@ -749,7 +749,7 @@ export default function TeacherSettingsPage() {
             </section>
 
             {/* 语音识别配置 */}
-            <section className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+            <section className="bg-white rounded-xl border border-gray-100 shadow overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Mic className="w-4 h-4 text-slate-600" />

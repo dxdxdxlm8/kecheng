@@ -49,7 +49,7 @@ export default function StudentLoginPage() {
       <a
         href="/download/1.apk"
         download="课堂助手.apk"
-        className="absolute top-4 right-4 inline-flex items-center gap-1.5 px-3 py-2 bg-white/90 border border-gray-200 rounded-xl text-sm text-gray-600 shadow-sm hover:text-green-600 hover:border-green-300 hover:bg-white transition"
+        className="absolute top-4 right-4 inline-flex items-center gap-1.5 px-3 py-2 bg-white/90 border border-gray-200 rounded-xl text-sm text-gray-600 shadow hover:text-green-600 hover:border-green-300 hover:bg-white transition"
         title="下载安卓客户端"
       >
         <Download className="w-4 h-4" />

@@ -184,7 +184,7 @@ export default function InteractionsPage() {
         ) : (
           <div className="space-y-6">
             {Object.entries(sessions).map(([sessionId, msgs]) => (
-              <div key={sessionId} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+              <div key={sessionId} className="bg-white rounded-xl border border-gray-100 shadow overflow-hidden">
                 <div className="px-5 py-3 bg-gray-50 border-b border-gray-100">
                   <p className="text-sm text-gray-500">
                     会话: {sessionId.slice(0, 8)}... | {msgs.length} 条消息 | {new Date(msgs[0].created_at).toLocaleString('zh-CN')}

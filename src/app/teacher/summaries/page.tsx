@@ -132,7 +132,7 @@ export default function SummariesPage() {
           <div className="text-center py-12 text-gray-500">暂无学情数据，学生需要先完成互动和学习</div>
         ) : (
           <>
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-xl border border-gray-100 shadow overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>

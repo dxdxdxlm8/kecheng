@@ -174,7 +174,7 @@ export default function GuidancePage() {
         {loading ? (
           <div className="text-center py-12 text-gray-500">加载中...</div>
         ) : !prompt ? (
-          <div className="bg-white rounded-xl p-10 border border-gray-100 shadow-sm text-center">
+          <div className="bg-white rounded-xl p-10 border border-gray-100 shadow text-center">
             <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-amber-50 flex items-center justify-center">
               <Plus className="w-7 h-7 text-amber-600" />
             </div>
@@ -199,7 +199,7 @@ export default function GuidancePage() {
             </button>
           </div>
         ) : (
-          <div className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm">
+          <div className="bg-white rounded-xl p-6 border border-gray-100 shadow">
             <div className="flex justify-between items-start mb-4">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-2">

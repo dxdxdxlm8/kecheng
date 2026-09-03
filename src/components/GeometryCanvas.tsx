@@ -507,7 +507,7 @@ export function GeometryCanvas({
     <canvas
       ref={canvasRef}
       style={{ width, height }}
-      className="rounded-xl border border-gray-200 shadow-sm"
+      className="rounded-xl border border-gray-200 shadow"
     />
   );
 }
