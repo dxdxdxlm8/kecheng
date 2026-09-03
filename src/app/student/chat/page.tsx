@@ -464,6 +464,16 @@ export default function StudentChatPage() {
       fetchSessions(user.id);
     } catch (err) {
       console.error('Chat error:', err);
+      // 流断了 ≠ 没成功：判题回复与学生消息在断流前就已落库，
+      // 从服务器重拉一次会话即可看到真实结果，把「网络错误」变成无感恢复
+      if (sessionId) {
+        try {
+          await loadSession(sessionId);
+          return;
+        } catch {
+          /* 重拉也失败（网络真的断了），走原错误提示 */
+        }
+      }
       setMessages(prev => {
         const updated = [...prev];
         updated[updated.length - 1] = {

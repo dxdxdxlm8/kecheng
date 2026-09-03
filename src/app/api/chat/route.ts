@@ -677,15 +677,21 @@ export async function POST(request: NextRequest) {
     }
 
     // SSE：review 全文一次性下发（前端打字机展示），附带判定与状态
+    // 注意：数据在上面已全部落库，这里若客户端已断开（手机锁屏/网络闪断）
+    // 写流会抛 "Controller is already closed"，捕获忽略即可，不影响历史记录
     const judgeStream = new ReadableStream({
       start(controller) {
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ review: displayContent, judged: true, is_correct: isCorrect })}\n\n`));
-        if (!nextExerciseText && parsed.evaluation) {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ evaluation: parsed.evaluation })}\n\n`));
+        try {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ review: displayContent, judged: true, is_correct: isCorrect })}\n\n`));
+          if (!nextExerciseText && parsed.evaluation) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ evaluation: parsed.evaluation })}\n\n`));
+          }
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ state: updateFields })}\n\n`));
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true, agent: 'teacher' })}\n\n`));
+          controller.close();
+        } catch (e) {
+          console.warn('[judge] 客户端已断开，跳过 SSE 下发（数据已落库）:', e);
         }
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ state: updateFields })}\n\n`));
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true, agent: 'teacher' })}\n\n`));
-        controller.close();
       },
     });
     return new Response(judgeStream, { headers: SSE_HEADERS });
@@ -720,11 +726,16 @@ export async function POST(request: NextRequest) {
         controller.close();
       } catch (error) {
         console.error('Stream error:', error);
-        const detail = error instanceof Error ? error.message.slice(0, 300) : '';
-        controller.enqueue(
-          encoder.encode(`data: ${JSON.stringify({ error: `生成回复失败${detail ? `：${detail}` : ''}` })}\n\n`)
-        );
-        controller.close();
+        // 客户端断开后 controller 已关闭，再写入会抛次生错误，这里兜住
+        try {
+          const detail = error instanceof Error ? error.message.slice(0, 300) : '';
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ error: `生成回复失败${detail ? `：${detail}` : ''}` })}\n\n`)
+          );
+          controller.close();
+        } catch {
+          /* 客户端已断开，忽略 */
+        }
       }
     },
   });

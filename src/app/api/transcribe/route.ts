@@ -53,10 +53,26 @@ export async function POST(request: NextRequest) {
     }
 
     const startedAt = Date.now();
-    const text = await transcribeAudio(
-      { blob: file, filename: file.name || 'audio.webm' },
-      config
-    );
+    let text = '';
+    // 供应商（硅基流动）偶发 503/429，自动重试一次，避免学生语音识别莫名失败
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        text = await transcribeAudio(
+          { blob: file, filename: file.name || 'audio.webm' },
+          config
+        );
+        break;
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        const transient = /HTTP 5\d\d|HTTP 429|aborted?|timeout/i.test(msg);
+        if (attempt === 1 && transient) {
+          console.warn('[transcribe] 供应商瞬时错误，重试一次：', msg.slice(0, 120));
+          await new Promise((r) => setTimeout(r, 800));
+          continue;
+        }
+        throw e;
+      }
+    }
 
     return NextResponse.json({
       text,
