@@ -838,7 +838,15 @@ export default function StudentChatPage() {
                 新对话
               </button>
               <button
-                onClick={() => router.push('/student/summary?regenerate=true')}
+                onClick={() => {
+                  // 已有对话内容的会话带上 session_id，确保看的是本次会话的总结；
+                  // 空新对话不带，由总结页回落到学生最近一次有记录的会话
+                  const target =
+                    sessionId && messages.length > 0
+                      ? `/student/summary?session_id=${encodeURIComponent(sessionId)}`
+                      : '/student/summary';
+                  router.push(target);
+                }}
                 className="flex items-center gap-1 sm:gap-1.5 px-2 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm whitespace-nowrap text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition"
               >
                 <FileText className="w-4 h-4 shrink-0" />
@@ -1057,9 +1065,15 @@ export default function StudentChatPage() {
                 <div className="mt-6 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-5 text-center">
                   <CheckCircle2 className="w-10 h-10 mx-auto mb-2 text-green-600" />
                   <h3 className="text-base font-semibold text-gray-900 mb-1">本堂课已结束</h3>
-                  <p className="text-sm text-gray-600 mb-3">教师已为你生成本堂课的学习总结</p>
+                  <p className="text-sm text-gray-600 mb-3">学习总结正在后台生成，完成后可随时查看</p>
                   <button
-                    onClick={() => router.push('/student/summary?regenerate=true')}
+                    onClick={() =>
+                      router.push(
+                        sessionId
+                          ? `/student/summary?session_id=${encodeURIComponent(sessionId)}`
+                          : '/student/summary'
+                      )
+                    }
                     className="inline-flex items-center gap-2 px-5 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition"
                   >
                     <FileText className="w-4 h-4" />

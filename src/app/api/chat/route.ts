@@ -4,6 +4,7 @@ import { getSystemSettings } from '@/lib/settings';
 import { isLlmConfigured, streamChat, invokeChat } from '@/lib/llm/client';
 import type { ChatMessage, MessageContent } from '@/lib/llm/types';
 import { generatePresignedUrl, isStorageConfigured } from '@/lib/storage/object-storage';
+import { ensureSummaryGeneration } from '@/lib/summary/generator';
 
 const SSE_HEADERS = {
   'Content-Type': 'text/event-stream',
@@ -657,7 +658,8 @@ export async function POST(request: NextRequest) {
       updateFields.phase = 'finished';
       updateFields.question_index = 3;
 
-      // 保存学习总结
+      // 保存学习总结占位行（末题点评 + 练习评价先落库，
+      // 完整总结由后台任务异步补全，学生点开总结页时若未跑完则轮询）
       await supabase.from('learning_summaries').insert({
         student_id,
         session_id,
@@ -670,6 +672,10 @@ export async function POST(request: NextRequest) {
         overall_summary: parsed.review,
         practice_evaluation: parsed.evaluation || '',
       });
+
+      // 自动后台触发生成完整学习总结：不 await，不阻塞判题响应；
+      // 幂等由 generator 保证（同会话只跑一次，失败可在总结页重试）
+      void ensureSummaryGeneration(student_id, session_id);
     }
 
     if (existingState && existingState.length > 0) {
