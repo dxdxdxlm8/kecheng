@@ -26,3 +26,7 @@ Thumbs.db
 
 # Local tool / runtime state (WorkBuddy project data)
 .workbuddy/
+
+# pnpm 失败残留 / 降级备份
+_tmp_*
+node_modules_v4_old/
