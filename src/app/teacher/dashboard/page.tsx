@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { BookOpen, FileText, MessageSquare, BarChart3, LogOut, Lightbulb, Users, Target, Cpu, Trash2 } from 'lucide-react';
+import { FileText, MessageSquare, BarChart3, LogOut, Users, Target, Cpu, Trash2 } from 'lucide-react';
+// 公开课隐藏：知识点管理/引导话术入口（BookOpen、Lightbulb 图标随菜单项一起注释）
 
 interface TeacherUser {
   email: string;
@@ -14,7 +15,8 @@ interface TeacherUser {
 export default function TeacherDashboardPage() {
   const router = useRouter();
   const [user, setUser] = useState<TeacherUser | null>(null);
-  const [stats, setStats] = useState({ students: 0, interactions: 0, summaries: 0 });
+  // 公开课隐藏统计卡片：恢复时取消本行、useEffect 内 fetch 段及下方 Stats JSX 的注释
+  // const [stats, setStats] = useState({ students: 0, interactions: 0, summaries: 0 });
 
   useEffect(() => {
     const token = localStorage.getItem('teacher_token');
@@ -25,15 +27,16 @@ export default function TeacherDashboardPage() {
     }
     setUser(JSON.parse(userData));
 
-    // Fetch stats
-    Promise.all([
-      fetch('/api/summaries').then(r => r.json()),
-    ]).then(([summariesData]) => {
-      const students = summariesData.data?.length || 0;
-      const interactions = summariesData.data?.reduce((acc: number, s: { interaction_count: number }) => acc + s.interaction_count, 0) || 0;
-      const summariesCount = summariesData.data?.filter((s: { latest_summary: unknown }) => s.latest_summary).length || 0;
-      setStats({ students, interactions, summaries: summariesCount });
-    }).catch(() => {});
+    // 公开课隐藏统计卡片：恢复时取消注释
+    // // Fetch stats
+    // Promise.all([
+    //   fetch('/api/summaries').then(r => r.json()),
+    // ]).then(([summariesData]) => {
+    //   const students = summariesData.data?.length || 0;
+    //   const interactions = summariesData.data?.reduce((acc: number, s: { interaction_count: number }) => acc + s.interaction_count, 0) || 0;
+    //   const summariesCount = summariesData.data?.filter((s: { latest_summary: unknown }) => s.latest_summary).length || 0;
+    //   setStats({ students, interactions, summaries: summariesCount });
+    // }).catch(() => {});
   }, [router]);
 
   const handleLogout = () => {
@@ -57,8 +60,9 @@ export default function TeacherDashboardPage() {
 
   const menuItems = [
     { href: '/teacher/students', icon: Users, label: '学生管理', desc: '预设学生姓名，控制登录权限', color: 'cyan' },
-    { href: '/teacher/knowledge', icon: BookOpen, label: '知识点管理', desc: '管理教学知识点内容', color: 'blue' },
-    { href: '/teacher/guidance', icon: Lightbulb, label: '引导话术', desc: '管理教学引导话术', color: 'amber' },
+    // 公开课隐藏入口：需要时取消注释即可恢复
+    // { href: '/teacher/knowledge', icon: BookOpen, label: '知识点管理', desc: '管理教学知识点内容', color: 'blue' },
+    // { href: '/teacher/guidance', icon: Lightbulb, label: '引导话术', desc: '管理教学引导话术', color: 'amber' },
     { href: '/teacher/interactions', icon: MessageSquare, label: '互动记录', desc: '查看学生互动记录', color: 'green' },
     { href: '/teacher/summaries', icon: BarChart3, label: '学情评价', desc: '查看全班学情汇总', color: 'rose' },
     { href: '/teacher/accuracy', icon: Target, label: '答题正确率', desc: '查看每位学生三道练习的正确率', color: 'indigo' },
@@ -93,7 +97,7 @@ export default function TeacherDashboardPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats */}
+        {/* 公开课隐藏统计卡片（互动消息/学生数量/学习总结）：恢复时取消注释
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded-xl p-6 border border-gray-100 shadow">
             <div className="flex items-center gap-3">
@@ -129,6 +133,7 @@ export default function TeacherDashboardPage() {
             </div>
           </div>
         </div>
+        */}
 
         {/* Menu Grid */}
         <h2 className="text-lg font-semibold text-gray-900 mb-4">功能菜单</h2>

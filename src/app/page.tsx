@@ -28,7 +28,7 @@ export default function HomePage() {
               </div>
               <h2 className="text-2xl font-bold text-gray-900 mb-3">教师端</h2>
               <p className="text-gray-500 mb-4">
-                管理知识点、题目和引导话术，查看学生互动记录，生成学情评价
+                查看学生互动记录与答题正确率，生成学情评价，管理课堂数据
               </p>
               <span className="inline-flex items-center text-blue-600 font-medium group-hover:text-blue-700">
                 进入教师端
