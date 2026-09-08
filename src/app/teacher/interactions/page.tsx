@@ -16,8 +16,12 @@ interface Interaction {
   role: string;
   content: string;
   created_at: string;
+  image_url?: string;
   students?: { name: string };
 }
+
+// 纯图片作答时落库的占位文本：有图可显示时不再重复展示
+const IMAGE_PLACEHOLDER_TEXTS = ['[图片作答]', '[图片]'];
 
 type RoleStyle = {
   label: string;
@@ -73,6 +77,8 @@ export default function InteractionsPage() {
   const [selectedStudent, setSelectedStudent] = useState<string>('');
   const [interactions, setInteractions] = useState<Interaction[]>([]);
   const [loading, setLoading] = useState(false);
+  // 点击图片后的放大预览（教师查看学生手写过程需要看细节）
+  const [previewImage, setPreviewImage] = useState<string>('');
 
   useEffect(() => {
     if (!localStorage.getItem('teacher_token')) {
@@ -193,13 +199,35 @@ export default function InteractionsPage() {
                 <div className="p-5 space-y-3">
                   {msgs.map((msg) => {
                     const style = getRoleStyle(msg.role);
+                    // 纯图片作答落库的占位文本：有图时只展示图片
+                    const isPlaceholder = IMAGE_PLACEHOLDER_TEXTS.includes(msg.content.trim());
                     return (
                       <div key={msg.id} className={`flex ${style.align}`}>
                         <div className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-sm ${style.bubble}`}>
                           <p className={`text-xs font-medium mb-1 ${style.labelColor}`}>
                             {style.label}
                           </p>
-                          <p className="whitespace-pre-wrap">{msg.content}</p>
+                          {msg.image_url ? (
+                            <button
+                              type="button"
+                              onClick={() => setPreviewImage(msg.image_url!)}
+                              className="block cursor-zoom-in"
+                              title="点击放大查看"
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={msg.image_url}
+                                alt="学生作答图片"
+                                className="max-w-full max-h-64 rounded-lg border border-black/5 object-contain"
+                              />
+                            </button>
+                          ) : isPlaceholder ? (
+                            // 有图片记录但 URL 生成失败（如存储未配置）时的兜底展示
+                            <p className="whitespace-pre-wrap italic opacity-60">[图片作答]</p>
+                          ) : null}
+                          {!(msg.image_url && isPlaceholder) && (
+                            <p className="whitespace-pre-wrap">{msg.content}</p>
+                          )}
                           <p className="text-xs opacity-40 mt-1">
                             {new Date(msg.created_at).toLocaleTimeString('zh-CN')}
                           </p>
@@ -213,6 +241,21 @@ export default function InteractionsPage() {
           </div>
         )}
       </main>
+
+      {/* 图片放大预览层：点击任意处关闭 */}
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-6 cursor-zoom-out"
+          onClick={() => setPreviewImage('')}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={previewImage}
+            alt="学生作答图片（放大）"
+            className="max-w-full max-h-full object-contain rounded-lg"
+          />
+        </div>
+      )}
     </div>
   );
 }
