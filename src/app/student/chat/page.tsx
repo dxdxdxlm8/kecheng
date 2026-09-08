@@ -957,7 +957,7 @@ export default function StudentChatPage() {
                       <h3 className="font-bold text-amber-800">课堂建模题</h3>
                     </div>
                     <p className="text-gray-700 leading-relaxed text-sm">
-                      某航空公司接到气象部门预警：受台风影响，东海海域上空形成半径达 40 千米的圆形危险区（假设台风中心稳定）。已知台风中心位于机场 A 正东方向 30 千米处，机场 B 位于台风中心正北方向 40 千米处，A、B 两机场之间为直线航线。
+                      某航空公司接到气象部门预警：受台风影响，东海海域上空形成半径达 20 千米的圆形危险区（假设台风中心稳定）。已知台风中心位于 A 机场正东方向 30 千米处，B 机场位于台风中心正北方向 40 千米处，A、B 两机场之间为直线航线。请你判断该航线是否会进入台风危险区？
                     </p>
                     <div className="mt-4 pt-3 border-t border-amber-200 text-sm text-amber-700">
                       💬 先说说你的建模思路，小王会和你一起讨论
