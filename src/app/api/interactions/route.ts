@@ -80,7 +80,38 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ data: normalized });
+    // 附带每个会话的「练习评价」：三道题全部做完后由判题链路生成，
+    // 存在 learning_summaries.practice_evaluation 而非对话流水里，
+    // 教师端互动记录页需要在会话末尾单独展示
+    const sessionIds = Array.from(
+      new Set(
+        normalized
+          .map((item) => item.session_id)
+          .filter((v): v is string => typeof v === 'string' && v.length > 0)
+      )
+    );
+    const practiceEvaluations: Record<string, string> = {};
+    if (sessionIds.length > 0) {
+      let sumQuery = client
+        .from('learning_summaries')
+        .select('session_id, practice_evaluation')
+        .in('session_id', sessionIds);
+      if (studentId) sumQuery = sumQuery.eq('student_id', studentId);
+
+      const { data: sumRows, error: sumError } = await sumQuery;
+      if (sumError) {
+        console.error('[interactions] 查询练习评价失败:', sumError.message);
+      } else {
+        (sumRows || []).forEach((row: { session_id: string; practice_evaluation: string | null }) => {
+          const text = row.practice_evaluation;
+          if (row.session_id && text && text.trim() && !practiceEvaluations[row.session_id]) {
+            practiceEvaluations[row.session_id] = text;
+          }
+        });
+      }
+    }
+
+    return NextResponse.json({ data: normalized, practiceEvaluations });
   } catch (error) {
     console.error('Get interactions error:', error);
     return NextResponse.json({ error: '查询失败' }, { status: 500 });

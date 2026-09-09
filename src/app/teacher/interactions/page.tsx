@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, MessageSquare } from 'lucide-react';
+import { ArrowLeft, MessageSquare, ClipboardList } from 'lucide-react';
 
 interface Student {
   id: string;
@@ -77,6 +77,8 @@ export default function InteractionsPage() {
   const [selectedStudent, setSelectedStudent] = useState<string>('');
   const [interactions, setInteractions] = useState<Interaction[]>([]);
   const [loading, setLoading] = useState(false);
+  // 每个会话的「练习评价」（三道题做完后的总结），key = session_id
+  const [practiceEvaluations, setPracticeEvaluations] = useState<Record<string, string>>({});
   // 点击图片后的放大预览（教师查看学生手写过程需要看细节）
   const [previewImage, setPreviewImage] = useState<string>('');
 
@@ -105,6 +107,7 @@ export default function InteractionsPage() {
       const res = await fetch(`/api/interactions?student_id=${studentId}`);
       const data = await res.json();
       setInteractions(data.data || []);
+      setPracticeEvaluations(data.practiceEvaluations || {});
     } catch (err) {
       console.error('Fetch error:', err);
     } finally {
@@ -118,6 +121,7 @@ export default function InteractionsPage() {
       fetchInteractions(studentId);
     } else {
       setInteractions([]);
+      setPracticeEvaluations({});
     }
   };
 
@@ -235,6 +239,21 @@ export default function InteractionsPage() {
                       </div>
                     );
                   })}
+
+                  {/* 三道题做完后的练习评价（学生端可见，教师端在此一并展示） */}
+                  {practiceEvaluations[sessionId] && (
+                    <div className="mt-2 bg-blue-50 border border-blue-100 rounded-xl p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-7 h-7 bg-blue-100 rounded-lg flex items-center justify-center">
+                          <ClipboardList className="w-4 h-4 text-blue-600" />
+                        </div>
+                        <span className="text-sm font-medium text-blue-900">练习评价</span>
+                      </div>
+                      <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                        {practiceEvaluations[sessionId]}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
