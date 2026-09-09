@@ -143,14 +143,32 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    const idsParam = searchParams.get('ids');
     const sessionId = searchParams.get('session_id');
     const studentId = searchParams.get('student_id');
 
-    if (!sessionId || !studentId) {
-      return NextResponse.json({ error: '缺少 session_id 或 student_id' }, { status: 400 });
+    const client = getSupabaseClient();
+
+    // 按 id 删除单条或多条互动记录（教师端逐条勾选后删除）
+    const targetIds = (idsParam ? idsParam.split(',') : id ? [id] : [])
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    if (targetIds.length > 0) {
+      const { error } = await client
+        .from('interaction_records')
+        .delete()
+        .in('id', targetIds);
+
+      if (error) throw new Error(`删除互动记录失败: ${error.message}`);
+
+      return NextResponse.json({ success: true, deleted: targetIds.length });
     }
 
-    const client = getSupabaseClient();
+    if (!sessionId || !studentId) {
+      return NextResponse.json({ error: '缺少 id / ids，或 session_id + student_id' }, { status: 400 });
+    }
 
     // 删除该会话的互动记录
     const { error: interactionError } = await client
