@@ -30,3 +30,6 @@ Thumbs.db
 # pnpm 失败残留 / 降级备份
 _tmp_*
 node_modules_v4_old/
+
+# 部署时的就地备份（<file>.bak.YYYYMMDDx）
+*.bak.*

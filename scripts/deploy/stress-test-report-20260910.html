@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>kecheng 新服务器压力测试报告 · 2026-09-10</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --panel:#ffffff; --line:#e3e6ea; --line2:#eef1f4;
+    --ink:#1a1d21; --ink2:#4a535e; --ink3:#7a8592;
+    --ok:#0f9d58; --warn:#e8912d; --bad:#d93025; --accent:#2b6cb0; --accent-soft:#eaf2fb;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    line-height:1.65;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:36px 22px 80px}
+  header{margin-bottom:28px}
+  h1{font-size:27px;margin:0 0 8px;letter-spacing:-.3px}
+  .sub{color:var(--ink3);font-size:14px}
+  h2{font-size:19px;margin:38px 0 14px;padding-bottom:8px;border-bottom:2px solid var(--line);letter-spacing:-.2px}
+  h3{font-size:15px;margin:22px 0 10px;color:var(--ink2)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin-bottom:14px}
+  .verdict{background:linear-gradient(180deg,#f0f8f3,#fff);border:1px solid #cfe8da}
+  .verdict .big{font-size:17px;font-weight:650;color:#0b7a44;margin:0 0 10px}
+  ul.clean{margin:8px 0 0;padding-left:20px}
+  ul.clean li{margin:5px 0}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;margin:6px 0}
+  th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--line2)}
+  th{background:#f9fafb;color:var(--ink2);font-weight:600;font-size:12.5px;white-space:nowrap}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+  tr:last-child td{border-bottom:none}
+  .tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:4px 8px;margin-bottom:16px}
+  code{background:#f2f4f7;padding:1px 6px;border-radius:4px;font-size:12.5px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .tag{display:inline-block;font-size:11.5px;padding:2px 8px;border-radius:20px;font-weight:600;vertical-align:middle}
+  .t-ok{background:#e6f4ea;color:#0b7a44}
+  .t-warn{background:#fdf1e0;color:#a5600f}
+  .t-bad{background:#fce8e6;color:#b3261e}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:740px){.grid2{grid-template-columns:1fr}}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .kpi .lab{font-size:12.5px;color:var(--ink3);margin-bottom:4px}
+  .kpi .val{font-size:23px;font-weight:680;letter-spacing:-.5px}
+  .kpi .val small{font-size:13px;font-weight:500;color:var(--ink3);margin-left:3px}
+  .note{font-size:12.5px;color:var(--ink3);margin-top:10px}
+  .callout{border-left:4px solid var(--accent);background:var(--accent-soft);padding:12px 16px;border-radius:0 8px 8px 0;margin:14px 0;font-size:13.5px}
+  .callout.warn{border-left-color:var(--warn);background:#fdf7ee}
+  .callout.bad{border-left-color:var(--bad);background:#fdf0ef}
+  .callout b{color:var(--ink)}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;font-size:12.5px;color:var(--ink2);margin-top:8px}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:middle}
+  footer{margin-top:44px;padding-top:16px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink3)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>kecheng 新服务器压力测试报告</h1>
+  <div class="sub">
+    被测机 <b>103.115.56.210</b>（2 核 · 880MB 内存 · 4GB swap · <b>5Mbps 带宽</b> · Ubuntu 23.04）&nbsp;·&nbsp;
+    测试日期 2026-09-10 &nbsp;·&nbsp; 测试目标：30 名学生同时访问是否出现 CPU / 内存瓶颈
+  </div>
+</header>
+
+<div class="card verdict">
+  <p class="big">结论：CPU 和内存都不是瓶颈。真正的瓶颈是 5Mbps 带宽。</p>
+  <ul class="clean">
+    <li><b>CPU 完全不是瓶颈</b> —— 30 人同时完整加载页面，CPU 峰值仅 <b>10.6%</b>；即使把并发推到 300，CPU 峰值也只有 13.5%。</li>
+    <li><b>内存完全不是瓶颈</b> —— 全部测试中可用内存稳定在 <b>394MB 以上</b>，swap 零增长（始终 58MB），node 进程 RSS 稳定在 188–191MB。</li>
+    <li><b>瓶颈是 5Mbps 上行带宽</b> —— 三次独立测量都撞在 4.5–5.0Mbps 这堵墙上。后果是学生<b>首次</b>打开页面时整班约需 <b>10 秒</b>加载完；加载过一次后浏览器缓存一年，之后几乎没有带宽压力。</li>
+    <li><b>比带宽更该担心的其实是免费的 LLM/ASR 额度</b> —— 服务器侧无压力，但免费 API 一旦限流，课堂会直接卡住。</li>
+  </ul>
+</div>
+
+<h2>1. 关键数字一览</h2>
+<div class="grid2">
+  <div class="kpi"><div class="lab">30 人同时访问 · CPU 峰值</div><div class="val">10.6<small>%</small></div><div class="note">2 核机器，即约 0.21 核</div></div>
+  <div class="kpi"><div class="lab">30 人同时访问 · 可用内存最低</div><div class="val">416<small>MB</small></div><div class="note">总 880MB，余量充足，swap 未动用</div></div>
+  <div class="kpi"><div class="lab">实测上行带宽上限</div><div class="val">4.5<small>Mbps</small></div><div class="note">标称 5M，20 并发聚合实测值</div></div>
+  <div class="kpi"><div class="lab">30 人同时冷加载耗时</div><div class="val">≈9.8<small>秒</small></div><div class="note">5.49MB ÷ 0.56MB/s</div></div>
+</div>
+
+<h2>2. 测试方法</h2>
+<div class="card">
+  <p style="margin:0 0 10px">压力测试最容易出错的地方是<b>把压测机放在被测机上</b>（测出来的是"生成器 + 应用"抢 CPU），或者<b>被测数据混进公网波动</b>。因此本次做了交叉验证：</p>
+  <ul class="clean" style="margin-top:0">
+    <li><b>权威口径 = 压测机在服务器本机</b>（<code>127.0.0.1</code> 打 nginx），彻底排除公网链路和代理干扰，得到服务器真实处理能力。</li>
+    <li><b>带宽口径 = 从旧服务器</b>（香港机房，RTT 11.8ms）向新机拉取，排除"本机国际链路慢"的可能。</li>
+    <li><b>旁证 = 服务器侧独立采样</b> <code>/proc/stat</code> 差分算 CPU、<code>ss</code> 数连接、<code>vmstat</code> 交叉复核，并用 <b>nginx access.log 行数差值</b>确认真实请求数。</li>
+    <li>压测工具为本项目新增的 <code>scripts/deploy/loadtest.js</code>（零依赖）与 <code>loadtest-monitor.sh</code>（服务端采样）。</li>
+  </ul>
+  <div class="callout">
+    <b>流量真实性已验证：</b>单次 30 并发测试中，客户端发出 3,213 请求，nginx 日志增长 3,335 行（客户端 IP 为真实来源 IP），比例约 1:1，不存在流量翻倍或缓存旁路。
+  </div>
+</div>
+
+<h2>3. 服务器处理能力（权威口径）</h2>
+<p style="font-size:13.5px;color:var(--ink2);margin:0 0 12px">压测机置于服务器本机，<code>127.0.0.1 → nginx:80 → node:5000</code> 全链路。请求页面为 <code>/student/login</code>、<code>/teacher/login</code>。</p>
+
+<div class="tblwrap">
+<table>
+  <thead><tr>
+    <th>场景</th><th class="num">并发</th><th class="num">吞吐</th><th class="num">CPU 峰值</th>
+    <th class="num">可用内存最低</th><th class="num">node RSS</th><th class="num">loadavg</th><th class="num">p95 延迟</th><th>错误</th>
+  </tr></thead>
+  <tbody>
+    <tr><td>仅页面（缓存页）</td><td class="num">30</td><td class="num">218 /s</td><td class="num">7–9%</td><td class="num">418 MB</td><td class="num">177 MB</td><td class="num">0.40</td><td class="num">229 ms</td><td><span class="tag t-ok">0</span></td></tr>
+    <tr><td><b>完整页面</b>（含 12 个静态资源）</td><td class="num"><b>30</b></td><td class="num"><b>185 /s</b></td><td class="num"><b>10.6%</b></td><td class="num"><b>416 MB</b></td><td class="num">188 MB</td><td class="num">1.62</td><td class="num">176 ms / 资源 357 ms</td><td><span class="tag t-ok">0</span></td></tr>
+    <tr><td>仅页面（压测余量）</td><td class="num">100</td><td class="num">223 /s</td><td class="num">13.5%</td><td class="num">394 MB</td><td class="num">188 MB</td><td class="num">2.13</td><td class="num">571 ms</td><td><span class="tag t-ok">0</span></td></tr>
+    <tr><td>仅页面（压测余量）</td><td class="num">300</td><td class="num">230 /s</td><td class="num">9.6%</td><td class="num">412 MB</td><td class="num">191 MB</td><td class="num">1.77</td><td class="num">1570 ms</td><td><span class="tag t-ok">0</span></td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>CPU 占用水位（蓝色柱 = 峰值，灰线 = 100%）</h3>
+<svg viewBox="0 0 680 200" width="100%" height="200" role="img" aria-label="不同并发下 CPU 峰值对比">
+  <line x1="60" y1="24" x2="660" y2="24" stroke="#d93025" stroke-dasharray="4 3" stroke-width="1"/>
+  <text x="664" y="28" font-size="10" fill="#d93025" text-anchor="end">100%</text>
+  <line x1="60" y1="88" x2="660" y2="88" stroke="#e8912d" stroke-dasharray="4 3" stroke-width="1"/>
+  <text x="664" y="92" font-size="10" fill="#e8912d" text-anchor="end">50%</text>
+  <line x1="60" y1="152" x2="660" y2="152" stroke="#0f9d58" stroke-dasharray="4 3" stroke-width="1"/>
+  <text x="664" y="156" font-size="10" fill="#0f9d58" text-anchor="end">20%</text>
+  <line x1="60" y1="168" x2="660" y2="168" stroke="#cfd4da" stroke-width="1"/>
+  <!-- bars: scale 0-100% -> y from 168 down to 24 (144px) -->
+  <!-- 30 conc assets: 10.6% -> h=15.3 -->
+  <rect x="120" y="152.7" width="70" height="15.3" fill="#2b6cb0" rx="2"/>
+  <text x="155" y="147" font-size="11" fill="#2b6cb0" text-anchor="middle" font-weight="600">10.6%</text>
+  <text x="155" y="184" font-size="11" fill="#4a535e" text-anchor="middle">30 并发</text>
+  <text x="155" y="197" font-size="10" fill="#7a8592" text-anchor="middle">完整页面</text>
+  <!-- 100 conc: 13.5% -> h=19.4 -->
+  <rect x="265" y="148.6" width="70" height="19.4" fill="#2b6cb0" rx="2"/>
+  <text x="300" y="143" font-size="11" fill="#2b6cb0" text-anchor="middle" font-weight="600">13.5%</text>
+  <text x="300" y="184" font-size="11" fill="#4a535e" text-anchor="middle">100 并发</text>
+  <text x="300" y="197" font-size="10" fill="#7a8592" text-anchor="middle">仅页面</text>
+  <!-- 300 conc: 9.6% -> h=13.8 -->
+  <rect x="410" y="154.2" width="70" height="13.8" fill="#2b6cb0" rx="2"/>
+  <text x="445" y="149" font-size="11" fill="#2b6cb0" text-anchor="middle" font-weight="600">9.6%</text>
+  <text x="445" y="184" font-size="11" fill="#4a535e" text-anchor="middle">300 并发</text>
+  <text x="445" y="197" font-size="10" fill="#7a8592" text-anchor="middle">仅页面</text>
+  <!-- 对照：构建期 -->
+  <rect x="555" y="30" width="70" height="138" fill="#f0b37e" rx="2"/>
+  <text x="590" y="25" font-size="11" fill="#a5600f" text-anchor="middle" font-weight="600">100%</text>
+  <text x="590" y="184" font-size="11" fill="#4a535e" text-anchor="middle">构建期</text>
+  <text x="590" y="197" font-size="10" fill="#7a8592" text-anchor="middle">参考对照</text>
+  <text x="60" y="196" font-size="10" fill="#7a8592">0%</text>
+</svg>
+<div class="note">
+  说明：100 / 300 并发时压测生成器与被测服务同机运行，吞吐被生成器自身拖住（平台在 230/s），因此 CPU 读数偏低；但两组数字共同说明<b>无论怎么加压，CPU 都远未接近饱和</b>。最右侧"构建期"是发版编译时的内存/CPU 压力，与运行时无关，仅作对照提醒。
+</div>
+
+<h2>4. 带宽：真正的瓶颈</h2>
+<p style="font-size:13.5px;color:var(--ink2);margin:0 0 12px">
+  从<b>旧服务器</b>（香港机房，到新机 RTT 仅 11.8ms）向新机拉取静态资源，独立测量三次都指向同一堵墙：
+</p>
+
+<div class="tblwrap">
+<table>
+  <thead><tr><th>测量方式</th><th class="num">吞吐</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td>旧机 → 新机，单连接</td><td class="num">1.10 Mbps</td><td>单流被压得很低</td></tr>
+    <tr><td>旧机 → 新机，20 并发聚合</td><td class="num"><b>4.52 Mbps</b></td><td>聚合也上不去，撞上限</td></tr>
+    <tr><td>本机 → 新机，30 并发（两次）</td><td class="num">4.9 / 5.0 Mbps</td><td>跨网 30 并发同样封顶 5M</td></tr>
+    <tr><td>本机 → 新机，60 并发</td><td class="num">4.9 Mbps</td><td>并发翻倍，吞吐纹丝不动 → 确认是硬上限</td></tr>
+    <tr><td>服务器本机 → 本机（无公网）</td><td class="num">20.7 Mbps</td><td>处理能力远超 5M，瓶颈只在出口带宽</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout warn">
+  <b>怎么判断这是"服务器带宽"而不是"我这边网慢"？</b>
+  ①并发从 30 翻到 60，吞吐一动不动，说明是被限速而非拥塞；
+  ②换成同城低延迟的旧服务器去测，同样是 4.5Mbps；
+  ③服务器本机自测能跑到 20.7Mbps。
+  三条合起来只能得出一个结论：<b>这台机器的上行被限在 5Mbps</b>，与客户端无关。
+</div>
+
+<h2>5. 一个学生首次打开页面要传多少</h2>
+<div class="tblwrap">
+<table>
+  <thead><tr><th>组成</th><th class="num">gzip 后</th><th class="num">未压缩</th></tr></thead>
+  <tbody>
+    <tr><td>登录页 HTML</td><td class="num">3,345 B</td><td class="num">11,959 B</td></tr>
+    <tr><td>12 个 JS / CSS chunk</td><td class="num">188,681 B</td><td class="num">668,017 B</td></tr>
+    <tr><td><b>单人首次冷加载合计</b></td><td class="num"><b>187.5 KB</b></td><td class="num">652 KB</td></tr>
+    <tr><td>全班 30 人合计</td><td class="num"><b>5.49 MB</b></td><td class="num">19.1 MB</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="grid2">
+  <div class="card" style="margin:0">
+    <h3 style="margin-top:0">全班同时冷加载</h3>
+    <p style="margin:0;font-size:13.5px">5.49 MB ÷ 0.56 MB/s ≈ <b>9.8 秒</b>。<br>
+    即最后一个学生大约等 10 秒页面才完全可用。服务器侧只花掉不到 2 秒的处理能力，剩下 8 秒都在等带宽。</p>
+  </div>
+  <div class="card" style="margin:0">
+    <h3 style="margin-top:0">gzip 的价值</h3>
+    <p style="margin:0;font-size:13.5px">开 gzip 后从 652KB 压到 187.5KB，<b>省了 72%</b>。<br>
+    若关掉 gzip，全班冷加载会从 9.8 秒涨到 <b>约 34 秒</b>。这项必须保住。</p>
+  </div>
+</div>
+
+<div class="card" style="margin-top:14px">
+  <p style="margin:0"><b>好消息：静态资源已经带了 <code>Cache-Control: public, max-age=31536000, immutable</code>。</b>
+  也就是说这 187.5KB 每人只下载一次，之后一年内不再重复下载；第二节课起，每人每次只传约 <b>3.3KB</b> 的 HTML，
+  30 人合计 100KB，瞬时完成。<b>冷加载的 10 秒只在"全班第一次打开"时发生一次。</b></p>
+</div>
+
+<h2>6. 瓶颈定位：一次三段论</h2>
+<div class="tblwrap">
+<table>
+  <thead><tr><th>观察项</th><th class="num">数值</th><th>含义</th></tr></thead>
+  <tbody>
+    <tr><td>服务器本机自测延迟（不经公网）</td><td class="num">p50 3ms / p95 6ms</td><td>服务器处理本身极快</td></tr>
+    <tr><td>客户端看到的静态资源延迟</td><td class="num">p95 2374ms</td><td>慢了 <b>约 400 倍</b></td></tr>
+    <tr><td>同时段服务端 CPU / 内存</td><td class="num">10% / 无变化</td><td>服务器根本没在忙</td></tr>
+  </tbody>
+</table>
+</div>
+<p style="font-size:13.5px;color:var(--ink2);margin:0">
+  三段合起来：慢的不是服务器，是<b>数据从服务器到你屏幕之间这段 5Mbps 的路</b>。
+</p>
+
+<h2>7. 建议（按优先级）</h2>
+
+<div class="card">
+  <h3 style="margin-top:0">P0 · 正式上课前必须确认的两件事（与本次压测无关，但风险更高）</h3>
+  <ul class="clean">
+    <li><b>备用 LLM 配置。</b>当前 LLM/ASR 跑在免费额度上（ModelScope + SiliconFlow）。30 人同时聊天对服务器几乎无压力（SSE 只传文字，几百 KB），但<b>免费 API 一旦限流或停服，课堂会立刻卡死</b>。这是整套系统里最脆的一环，比 5M 带宽严重得多。</li>
+    <li><b>学生上传图片的带宽。</b>nginx 允许单张 25MB。30 人同时上传一张 2MB 的解题照片就是 60MB，在 5Mbps 下需要 <b>约 96 秒</b>。如果课堂有"拍照上传"环节，建议提前压图（客户端压缩到 300KB 以内）。</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0">P1 · 把静态资源交给 nginx 直出（顺手能做的事）</h3>
+  <p style="margin:0 0 8px">当前 nginx 的 <code>location /</code> 把 <code>/_next/static/*</code> 也一并转发给了 Node。虽然它不影响带宽（带宽是硬上限），但能让 Node 少扛一大块活：</p>
+  <ul class="clean" style="margin-top:0">
+    <li>加一段 <code>location /_next/static/ { alias /opt/kecheng/.next/static/; expires 1y; access_log off; }</code>，让 nginx 直接读磁盘返回，跳过 Node 进程。</li>
+    <li>收益：Node 的 CPU 与连接数进一步下降，高并发下响应更稳；<b>但不会改变 5Mbps 这个上限</b>，别指望它解决冷加载 10 秒。</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0">P2 · 如果"首屏 10 秒"不能接受</h3>
+  <ul class="clean" style="margin-top:0">
+    <li><b>升级带宽到 10–20M</b>：最直接，冷加载 10 秒 → 约 3–5 秒。</li>
+    <li><b>挂 CDN</b>：静态 chunk 走 CDN，机房出口只出 HTML。注意本域名 DNS 在 Cloudflare，把静态资源走 CF 代理即可，但需按中国内地访问质量实测。</li>
+    <li><b>拆分首屏 chunk</b>：目前单个 <code>05efca57d55136fd.js</code> 就占 70KB（gzip 后），是首屏最重的一块。若其中有非首屏代码，可做动态 import 拆出去。这属于前端优化，工作量较大。</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0">P3 · 内存与构建</h3>
+  <ul class="clean" style="margin-top:0">
+    <li><b>运行时 1G 完全够。</b>所有测试中可用内存从未低于 394MB，swap 一次都没动过。日常运行不是问题。</li>
+    <li><b>但构建期是刀尖。</b>发版编译时可用内存最低只剩 27–35MB（见迁移手册实测），虽然没 OOM 但极其勉强。<b>发版一律避开上课时段</b>，或临时加 swap。</li>
+  </ul>
+</div>
+
+<h2>8. 附：为什么"看着像 50% CPU"的那几组数据不可信</h2>
+<div class="card">
+  <p style="margin:0 0 8px">测试中出现过一组异常读数：从本机直连压测时 CPU 显示 40–60%，而同一时刻换成"服务器本机压测"或"经由本地脚本编排"，CPU 只有 8–13%，且服务端连接数从 30 变成 0。</p>
+  <p style="margin:0 0 8px">交叉验证后确认：</p>
+  <ul class="clean" style="margin-top:0">
+    <li>两种方式下，<b>服务端 nginx 日志记录的真实请求数一致</b>（客户端 3,213 → 服务端 3,335），不存在流量翻倍；</li>
+    <li>服务器本机压测能跑到 <b>185–230 请求/秒</b>，此时 CPU 仅 8–13%，内存无变化——这才是服务器的真实处理能力；</li>
+    <li>那组 40–60% 的读数来自本机出网路径（本机网络带透明代理，连接行为与真实浏览器不同），<b>不代表服务器负载</b>。</li>
+  </ul>
+  <p style="margin:8px 0 0"><b>因此本报告所有容量结论均以"服务器本机压测"为准，并已用 <code>vmstat</code>、<code>ss</code>、nginx 日志三方交叉复核。</b></p>
+</div>
+
+<footer>
+  测试工具：<span class="mono">scripts/deploy/loadtest.js</span>（零依赖压测生成器）·
+  <span class="mono">scripts/deploy/loadtest-monitor.sh</span>（服务端资源采样）·
+  <span class="mono">scripts/deploy/run-loadtest.py</span>（编排）<br>
+  数据采集：/proc/stat 差分算 CPU · /proc/meminfo · ss 连接数 · vmstat 交叉复核 · nginx access.log 差值<br>
+  报告生成 2026-09-10
+</footer>
+
+</div>
+</body>
+</html>
