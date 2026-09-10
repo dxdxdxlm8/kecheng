@@ -48,7 +48,7 @@ const getRoleStyle = (role: string): RoleStyle => {
       };
     case 'companion':
       return {
-        label: '小王',
+        label: '小航',
         align: 'justify-end',
         bubble: 'bg-purple-100 text-purple-900 rounded-br-md',
         labelColor: 'text-purple-700',
@@ -236,7 +236,7 @@ export default function InteractionsPage() {
             </span>
             <span className="inline-flex items-center gap-1.5">
               <span className="w-3 h-3 rounded-full bg-purple-300" />
-              小王
+              小航
             </span>
           </div>
         )}

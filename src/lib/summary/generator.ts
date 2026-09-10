@@ -47,7 +47,7 @@ function roleLabel(role: string): string {
     case 'teacher':
       return '教师';
     case 'companion':
-      return '小王';
+      return '小航';
     default:
       return role;
   }
@@ -144,7 +144,7 @@ async function runSummaryGeneration(studentId: string, sessionId: string): Promi
     .eq('id', studentId)
     .maybeSingle();
 
-  // 互动记录（学生 / 教师 / 小王 三方）
+  // 互动记录（学生 / 教师 / 小航 三方）
   const { data: interactions, error: interError } = await supabase
     .from('interaction_records')
     .select('role, content')
@@ -179,21 +179,21 @@ async function runSummaryGeneration(studentId: string, sessionId: string): Promi
   const messages: ChatMessage[] = [
     {
       role: 'system' as const,
-      content: `你是一位教育评估专家。请根据学生本堂课的完整互动记录（含学生、教师、小王 三方对话）和答题情况，从以下四个维度对学生进行多角度评价：
+      content: `你是一位教育评估专家。请根据学生本堂课的完整互动记录（含学生、教师、小航 三方对话）和答题情况，从以下四个维度对学生进行多角度评价：
 
 【评价维度和观察点】
 1. 答题正确率：共答了几道题，答对几道，正确率如何，错题暴露了哪个知识点薄弱
 2. 学习主动性：是否主动发言、主动表达想法、主动追问、不会按时是否主动求助
 3. 问题提问：提问的质量如何，是否提出有价值的问题（如追问为什么、不懂的地方、想深入探索的点），是深度提问还是泛泛而问
-4. 与小王沟通策略：和小王讨论时能否清晰表达思路、能否听进去并回应小王的引导、讨论中是否受益、是否能把话题推进下去
+4. 与小航沟通策略：和小航讨论时能否清晰表达思路、能否听进去并回应小航的引导、讨论中是否受益、是否能把话题推进下去
 
 要求：
 1. 必须基于该学生实际的对话内容和答题情况，不能泛泛而谈
-2. strengths（优点）：结合四个维度，具体指出哪些方面表现好（如某题正确、主动提问、和小王讨论思路清晰）
-3. weaknesses（不足）：结合四个维度，具体指出哪些方面需要改进（如某个知识点薄弱、提问较少、和小王讨论时被动）
+2. strengths（优点）：结合四个维度，具体指出哪些方面表现好（如某题正确、主动提问、和小航讨论思路清晰）
+3. weaknesses（不足）：结合四个维度，具体指出哪些方面需要改进（如某个知识点薄弱、提问较少、和小航讨论时被动）
 4. suggestions（后续学习建议）：针对薄弱环节给出具体、可执行的后续学习建议
-5. discussion_summary（与小王沟通情况）：描述学生与小王讨论的互动质量、是否积极、思路是否清晰、是否从讨论中获益
-6. overall_summary（课堂表现总览）：用自然段落，从答题正确率、学习主动性、问题提问、与小王沟通策略四个维度依次点评，最后给出整体评价和后续学习建议
+5. discussion_summary（与小航沟通情况）：描述学生与小航讨论的互动质量、是否积极、思路是否清晰、是否从讨论中获益
+6. overall_summary（课堂表现总览）：用自然段落，从答题正确率、学习主动性、问题提问、与小航沟通策略四个维度依次点评，最后给出整体评价和后续学习建议
 7. 不同学生的总结应该有明显差异，体现个性化
 8. 数学公式必须使用Unicode符号书写，不要使用LaTeX格式
 9. 用JSON格式返回，包含 strengths、weaknesses、suggestions、discussion_summary、overall_summary 五个字段`,
@@ -207,7 +207,7 @@ async function runSummaryGeneration(studentId: string, sessionId: string): Promi
 - 答对数: ${answerCorrect}
 - 正确率: ${accuracy}%
 
-## 完整互动记录（学生 / 教师 / 小王）
+## 完整互动记录（学生 / 教师 / 小航）
 ${interactionSummary || '暂无互动记录'}
 
 ## 答题情况
@@ -217,14 +217,14 @@ ${answerSummary || '暂无答题记录'}
 - 答题正确率（答题数、答对数、正确率、错的题暴露什么薄弱点）
 - 学习主动性（是否主动发言、主动表达、主动追问）
 - 问题提问（提问的数量和质量，是否提出有价值的问题）
-- 与小王沟通策略（和小王讨论时是否清晰表达、能否推进话题、是否从中获益）
+- 与小航沟通策略（和小航讨论时是否清晰表达、能否推进话题、是否从中获益）
 
 返回：
 {
   "strengths": "结合四个维度指出学生的优点表现...",
   "weaknesses": "结合四个维度指出需要改进的地方...",
   "suggestions": "针对薄弱环节给出的后续学习建议...",
-  "discussion_summary": "与小王讨论情况的评价...",
+  "discussion_summary": "与小航讨论情况的评价...",
   "overall_summary": "从四个维度依次点评的课堂表现完整总览，含整体评价和后续学习建议..."
 }`,
     },

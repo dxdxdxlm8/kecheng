@@ -357,13 +357,13 @@ function StudentSummaryContent() {
               </p>
             </div>
 
-            {/* 小王讨论情况 */}
+            {/* 小航讨论情况 */}
             <div className="bg-white rounded-xl p-6 border border-purple-100 shadow">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
                   <Users className="w-4 h-4 text-purple-600" />
                 </div>
-                <h3 className="font-semibold text-gray-900">小王讨论情况</h3>
+                <h3 className="font-semibold text-gray-900">小航讨论情况</h3>
               </div>
               <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
                 {summary.discussion_summary || ''}

@@ -330,7 +330,7 @@ export default function StudentChatPage() {
       console.error('Init session state error:', err);
     }
 
-    // 不自动触发任何消息，学生先发言，小王随后参与讨论
+    // 不自动触发任何消息，学生先发言，小航随后参与讨论
   };
 
   // 通用流式调用 /api/chat
@@ -509,7 +509,7 @@ export default function StudentChatPage() {
     );
   };
 
-  // 普通发送（建模讨论阶段走小王，练习阶段走教师）
+  // 普通发送（建模讨论阶段走小航，练习阶段走教师）
   const handleSend = async () => {
     if ((!input.trim() && !selectedImage) || loading || !user || !sessionId || finished) return;
 
@@ -535,7 +535,7 @@ export default function StudentChatPage() {
       return;
     }
 
-    // 建模讨论阶段走小王，练习阶段走教师
+    // 建模讨论阶段走小航，练习阶段走教师
     const mode: 'teacher' | 'companion' = phase === 'modeling' ? 'companion' : 'teacher';
     const agentRole: Role = mode === 'companion' ? 'companion' : 'teacher';
 
@@ -946,7 +946,7 @@ export default function StudentChatPage() {
                 <div className="text-center text-gray-400 mt-20">
                   <GraduationCap className="w-12 h-12 mx-auto mb-3 opacity-30" />
                   <p>点击「新对话」开始学习</p>
-                  <p className="text-xs mt-2">先和小王讨论建模思路，输入「练习」开始做题</p>
+                  <p className="text-xs mt-2">先和小航讨论建模思路，输入「练习」开始做题</p>
                 </div>
               )}
               {messages.length === 0 && sessionId && phase === 'modeling' && (
@@ -960,7 +960,7 @@ export default function StudentChatPage() {
                       某航空公司接到气象部门预警：受台风影响，东海海域上空形成半径达 20 千米的圆形危险区（假设台风中心稳定）。已知台风中心位于 A 机场正东方向 30 千米处，B 机场位于台风中心正北方向 40 千米处，A、B 两机场之间为直线航线。请你判断该航线是否会进入台风危险区？
                     </p>
                     <div className="mt-4 pt-3 border-t border-amber-200 text-sm text-amber-700">
-                      💬 先说说你的建模思路，小王会和你一起讨论
+                      💬 先说说你的建模思路，小航会和你一起讨论
                     </div>
                   </div>
                 </div>
@@ -992,7 +992,7 @@ export default function StudentChatPage() {
                           <p className={`text-xs mb-1 ml-1 ${
                             isCompanion ? 'text-purple-500' : 'text-green-600'
                           }`}>
-                            {isCompanion ? '小王' : '教师'}
+                            {isCompanion ? '小航' : '教师'}
                           </p>
                         )}
                         <div className={`px-4 py-3 rounded-2xl text-sm ${
@@ -1091,7 +1091,7 @@ export default function StudentChatPage() {
                 {/* 建模阶段提示 */}
                 {phase === 'modeling' && (
                   <div className="mb-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700 text-center">
-                    正在和小王讨论建模思路，输入「练习」开始做课堂练习题
+                    正在和小航讨论建模思路，输入「练习」开始做课堂练习题
                   </div>
                 )}
 
@@ -1226,10 +1226,10 @@ export default function StudentChatPage() {
                         className="w-full px-4 pt-3 pb-1 bg-transparent outline-none resize-none text-sm min-h-[44px] max-h-40 overflow-y-auto"
                         placeholder={
                           phase === 'modeling'
-                            ? '和小王讨论建模思路，输入"练习"开始做题...'
+                            ? '和小航讨论建模思路，输入"练习"开始做题...'
                             : phase === 'teaching'
                             ? '和教师交流...'
-                            : '和小王讨论...'
+                            : '和小航讨论...'
                         }
                         disabled={loading}
                       />

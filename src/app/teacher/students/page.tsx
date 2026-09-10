@@ -212,7 +212,7 @@ export default function StudentsManagePage() {
                 rows={5}
               />
               <div className="flex items-center gap-3">
-                <label className="text-sm font-medium text-gray-700">批量小王水平：</label>
+                <label className="text-sm font-medium text-gray-700">批量小航水平：</label>
                 {renderLevelSelect(batchLevel, setBatchLevel)}
                 <span className="text-xs text-gray-400">所有学生将使用同一水平</span>
               </div>
@@ -253,7 +253,7 @@ export default function StudentsManagePage() {
             <h2 className="text-sm font-semibold text-gray-700">已预设学生（{students.length}人）</h2>
             <p className="text-xs text-gray-400 mt-1">只有在此列表中的学生才能登录学生端</p>
             <p className="text-xs text-gray-500 mt-1">
-              小王的水平决定讨论质量（普通水平的小王会和学生一起探索、可能出错；高水平的小王思路更清晰）
+              小航的水平决定讨论质量（普通水平的小航会和学生一起探索、可能出错；高水平的小航思路更清晰）
             </p>
           </div>
 
@@ -276,7 +276,7 @@ export default function StudentsManagePage() {
                     <button
                       onClick={() => handleToggleLevel(student)}
                       disabled={togglingId === student.id}
-                      title="点击切换小王水平"
+                      title="点击切换小航水平"
                       className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full transition cursor-pointer disabled:opacity-60 disabled:cursor-wait ${levelBadgeClass(student.companion_level)}`}
                     >
                       {togglingId === student.id && <Loader2 className="w-3 h-3 animate-spin" />}
