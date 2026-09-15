@@ -85,6 +85,42 @@ const FIXED_EXERCISES = [
   },
 ];
 
+/**
+ * 三道固定练习题的结论词。答案本身就是单一结论，
+ * 用于① 在判题提示里把判定标准简化成"结论比对"；② 文字作答时程序精确判定。
+ */
+const CONCLUSION_WORDS = ['相切', '相离', '相交'] as const;
+
+/** 取某道固定练习题的正确答案结论（如"相交"），取不到返回空串 */
+function getStandardConclusion(exerciseIndex: number): string {
+  const stdAnswer = FIXED_EXERCISES[exerciseIndex]?.answer || '';
+  return CONCLUSION_WORDS.find((w) => stdAnswer.includes(w)) || '';
+}
+
+/**
+ * 文字作答时程序化判定固定练习题。返回 null 表示"无法确定"，交给模型判断。
+ * 仅当答案中明确且唯一地出现结论词时才下结论：
+ * 图片作答（无文字）、答案为空、含"不相交"等否定形式、同时出现多个结论词 → 返回 null
+ */
+function judgeFixedExercise(
+  exerciseIndex: number,
+  studentAnswer: string | undefined
+): boolean | null {
+  const stdWord = getStandardConclusion(exerciseIndex);
+  if (!stdWord) return null;
+
+  const text = (studentAnswer || '').trim();
+  if (!text) return null;
+
+  // 否定形式（如"不相交"实际表示相离）含义相反，交给模型处理
+  if (/不相[切离交]/.test(text)) return null;
+
+  const hits = CONCLUSION_WORDS.filter((w) => text.includes(w));
+  if (hits.length !== 1) return null;
+
+  return hits[0] === stdWord;
+}
+
 // 构造教师 Agent system prompt
 function buildTeacherSystemPrompt(opts: {
   teacherPrompt: string;
@@ -151,17 +187,28 @@ ${teacherPrompt || '按照教学设计引导学生完成建模讨论和课堂练
 
   if (isJudging) {
     const isLastExercise = (exerciseIndex ?? 0) === 2;
+    const stdConclusion = getStandardConclusion(exerciseIndex ?? 0);
     prompt += `
 
 ## 当前任务：判断学生答案
 学生刚刚提交了答案：${hasImage ? "（见上方图片，请识别图片中的作答内容）" : `"${studentAnswer || ''}"`}
-这是第${(exerciseIndex ?? 0) + 1}道练习题。请严格对照上面的判题标准判断对错。
+这是第${(exerciseIndex ?? 0) + 1}道练习题。本题的正确答案结论是「${stdConclusion}」。
+
+【判定标准 - 最高优先级，必须严格执行】
+1. 本题只判断"直线与圆的位置关系"，只需核对学生给出的结论是否为「${stdConclusion}」：
+   - 学生给出的结论是「${stdConclusion}」→ 判定为答对（judgement = true）。**即使没有写任何解题过程，只要结论正确就算答对。**
+   - 学生给出的是其它结论（如相切/相离/相交中的另一个）→ 判定为答错。
+   - 学生完全没有给出结论（什么都没写、只填了题号如"1"，或答非所问）→ 判定为答错。
+2. 图片作答时同样适用：识别图片中学生手写的最终结论，按上述标准判定。
+3. 【严禁】把"只写了结论、没有写过程"当成"未作答"——这是常见的误判，只要结论正确就必须判对。
 
 【输出格式 - 必须严格遵守】
-你的回复必须是一个 JSON 对象（且只输出这一个 JSON，前后不要有任何其他文字）：
-${isLastExercise ? '{"review": "给学生的点评正文", "evaluation": "三道题练习评价正文", "judgement": true}' : '{"review": "给学生的点评正文", "judgement": true}'}
-- review：教师的讲解正文（判断对错 + 完整解题步骤，口语化、自然，像一对一辅导）。review 只讲当前这道题，不要总结三道题。
-${isLastExercise ? '- evaluation：三道练习题全部完成后，基于学生这三道题的答题情况，生成一段「练习评价」。要求：① 先总体说明三道题答对几题、整体表现如何；② 对每一道答错的题，分析主要错误点在哪里、错误原因是什么、后续如何具体改进；③ 语言亲切鼓励，结构清晰，不要出现"judgement"、"review"等字段名称。\n' : ''}- judgement：学生这题答对为 true，答错为 false（布尔值，不要加引号）。`;
+必须先确定 judgement，再写讲解；三个字段的内容必须互相一致，绝不能出现"review 说答对了、judgement 却给 false"这类矛盾。
+你的回复必须是一个 JSON 对象（且只输出这一个 JSON，前后不要有任何其他文字），字段顺序必须严格如下：
+${isLastExercise ? '{"judgement": true, "review": "给学生的点评正文", "evaluation": "三道题练习评价正文"}' : '{"judgement": true, "review": "给学生的点评正文"}'}
+- judgement：**必须是第一个字段**，学生这题答对为 true，答错为 false（布尔值，不要加引号）。
+- review：教师的讲解正文，先说明本题判定的结果（与 judgement 一致），再给出完整解题步骤，口语化、自然，像一对一辅导。review 只讲当前这道题，不要总结三道题。
+${isLastExercise ? '- evaluation：三道练习题全部完成后，基于学生这三道题的答题情况，生成一段「练习评价」。要求：① 先总体说明三道题答对几题、整体表现如何；② 对每一道答错的题，分析主要错误点在哪里、错误原因是什么、后续如何具体改进；③ 语言亲切鼓励，结构清晰，不要出现"judgement"、"review"等字段名称；④ **"答对几题"必须与三道题的判定结果完全一致，不得出现"某题没有作答"之类与判定矛盾的表述。**\n' : ''}`;
   }
 
   return prompt;
@@ -578,7 +625,7 @@ export async function POST(request: NextRequest) {
     const qIdx = (state?.question_index || 1);
     const stdAnswer = state?.current_answer || '';
     const isLastExercise = !nextExerciseText;
-    userText = `学生刚提交了第${qIdx}道练习题的作答${image_key ? "（答案已通过上方图片提交，请仔细识别图片中的解题过程与结果）" : `："${answer || '（空）'}"`}。\n题目：${state?.current_question_text || ''}\n标准答案：${stdAnswer}\n\n你是正在批改的教师，review 要像给真实学生讲解那样自然：\n1. 先明确告诉学生这道题答得对不对（答对了就肯定，答错了就温和指出）。\n2. 不管对错，都把这道题的完整解法步骤讲清楚，让学生真正学会；学生只写了序号/数字（如"1"、"2"、"3"）或与题目无关的作答时，视为未完成作答，应判错并提示"请写出完整的判断过程和结论"。\n3. 讲解要口语化、自然，就像一对一辅导对话，一步一步算给学生看，不要机械复述标准答案。若上传了图片，请结合图片中学生的过程针对性点评。\n4. review 只讲当前这道题，不要总结三道题；三道题的总结请写在 evaluation 字段中。\n5. review 里不要出下一道题（系统会自动推送），也不要出现"judgement"字样。\n\n最后严格按照系统指令的 JSON 格式输出（只输出一个 JSON 对象）。`;
+    userText = `学生刚提交了第${qIdx}道练习题的作答${image_key ? "（答案已通过上方图片提交，请仔细识别图片中的解题过程与结果）" : `："${answer || '（空）'}"`}。\n题目：${state?.current_question_text || ''}\n标准答案：${stdAnswer}\n\n你是正在批改的教师，review 要像给真实学生讲解那样自然：\n1. 先明确告诉学生这道题答得对不对（答对了就肯定，答错了就温和指出）。\n2. 不管对错，都把这道题的完整解法步骤讲清楚，让学生真正学会；只有学生"完全没有给出结论"时才算未作答——即什么都没写、只填了"1""2""3"这类题号、或答非所问，此时判错并提示"请写出完整的判断过程和结论"。**如果学生已经写出了正确结论（如"相交"），即使没有写过程也属于答对，绝不能因为没有过程而判错。**\n3. 讲解要口语化、自然，就像一对一辅导对话，一步一步算给学生看，不要机械复述标准答案。若上传了图片，请结合图片中学生的过程针对性点评。\n4. review 只讲当前这道题，不要总结三道题；三道题的总结请写在 evaluation 字段中。\n5. review 里不要出下一道题（系统会自动推送），也不要出现"judgement"字样。\n\n最后严格按照系统指令的 JSON 格式输出（只输出一个 JSON 对象，judgement 必须是第一个字段，且与 review、evaluation 的内容保持一致）。`;
     if (isLastExercise) {
       userText += `\n\n这是最后一道题。请同时返回 evaluation 字段，作为对学生的「练习评价」。`;
     }
@@ -645,7 +692,18 @@ export async function POST(request: NextRequest) {
       return sseError(`判题失败（已自动重试一次）：${lastError}`);
     }
 
-    const isCorrect = parsed.judgement;
+    // 文字作答时用程序精确判定（模型出现过"review 说答对了、judgement 却给 false"的自相矛盾）；
+    // 图片作答无法提取文字，judgeFixedExercise 返回 null，仍以模型判定为准
+    const preJudgement = judgeFixedExercise(
+      (state?.question_index || 1) - 1,
+      answer || (typeof message === 'string' ? message : '')
+    );
+    const isCorrect = preJudgement !== null ? preJudgement : parsed.judgement;
+    if (preJudgement !== null && preJudgement !== parsed.judgement) {
+      console.warn(
+        `[judge] 程序判定与模型判定不一致（程序=${preJudgement} 模型=${parsed.judgement}），已采用程序判定`
+      );
+    }
     // 学生看到的正文：点评 + 固定的下一道题（系统推送，LLM 不再出题）
     const displayContent = nextExerciseText
       ? `${parsed.review.trim()}\n\n---\n\n${nextExerciseText}`
