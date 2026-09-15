@@ -163,7 +163,9 @@ function StudentSummaryContent() {
         }
         try {
           const done = await queryOnce(studentId, targetSid);
-          if (done) {
+          // done 是 { ready, row } 对象，必须判断 ready 字段；
+          // 直接 if (done) 恒真，会在生成未完成时就把占位行当完整总结展示
+          if (done.ready) {
             stopPolling();
             setStatus('ready');
           }

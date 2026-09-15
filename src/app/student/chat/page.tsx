@@ -144,6 +144,8 @@ export default function StudentChatPage() {
   const triggeringRef = useRef(false);
   // 判题后自动续接标记（防止死循环）
   const autoContinueRef = useRef(false);
+  // 提交同步锁：上传/判题期间防止连点重复提交（state 更新是异步的，挡不住同一帧的重复点击）
+  const submittingRef = useRef(false);
   // 判题回复打字机（"假流式"：后端一次性下发全文，前端逐字展示）
   const typewriterRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -348,11 +350,33 @@ export default function StudentChatPage() {
       let imageKey: string | undefined;
       if (body.image_file) {
         setUploading(true);
-        const formData = new FormData();
-        formData.append('file', body.image_file as File);
-        const upRes = await fetch('/api/upload', { method: 'POST', body: formData });
-        const upData = await upRes.json();
-        if (upData.key) imageKey = upData.key;
+        try {
+          const formData = new FormData();
+          formData.append('file', body.image_file as File);
+          const upRes = await fetch('/api/upload', { method: 'POST', body: formData });
+          const upData = await upRes.json().catch(() => ({}));
+          if (!upRes.ok || !upData?.key) {
+            throw new Error(upData?.error || `HTTP ${upRes.status}`);
+          }
+          imageKey = upData.key;
+        } catch (e) {
+          // 上传失败必须明确告知并中断：否则会带着 undefined 的 image_key 继续请求，
+          // 后端把纯图片作答判成空/错，学生却以为已经发出去了
+          const msg = e instanceof Error ? e.message : String(e);
+          console.error('图片上传失败', e);
+          setUploading(false);
+          setMessages(prev => {
+            const updated = [...prev];
+            updated[updated.length - 1] = {
+              role: agentRole,
+              content: `图片上传失败（${msg}），请检查网络后重试，或改为文字作答。`,
+              isStreaming: false,
+            };
+            return updated;
+          });
+          setLoading(false);
+          return;
+        }
         setUploading(false);
         delete body.image_file;
       }
@@ -553,64 +577,79 @@ export default function StudentChatPage() {
 
   // 答题提交
   const handleAnswerSubmit = async () => {
-    if ((!answerInput.trim() && !answerImage) || loading || !user || !sessionId) return;
+    if ((!answerInput.trim() && !answerImage) || loading || answerUploading || !user || !sessionId) return;
+    // 同步锁防连点：重复点击会导致重复判题（后端有幂等锁兜底，前端这里先挡一层）
+    if (submittingRef.current) return;
+    submittingRef.current = true;
 
-    const answer = answerInput.trim();
-    // 显示学生答案消息
-    setMessages(prev => [...prev, {
-      role: 'student',
-      content: answerImage ? `【我的答案】${answer || '（已上传图片作答）'}` : `【我的答案】${answer}`,
-      imagePreview: answerImagePreview || undefined,
-    }]);
-    setAnswerInput('');
-    setShowAnswerInput(false);
-    autoContinueRef.current = false;
-    setJudgeFeedback(null);
+    try {
+      const answer = answerInput.trim();
+      const currentImage = answerImage;
+      const currentPreview = answerImagePreview;
 
-    // 上传答题图片（如有）
-    let answerImageKey: string | undefined;
-    if (answerImage) {
-      setAnswerUploading(true);
-      try {
-        const uploadForm = new FormData();
-        uploadForm.append('file', answerImage);
-        const uploadRes = await fetch('/api/upload', { method: 'POST', body: uploadForm });
-        if (uploadRes.ok) {
-          const uploadData = await uploadRes.json();
+      // 先上传图片：失败则阻断本次提交，避免出现"学生看到图片预览以为已提交、
+      // 后端却拿不到图片而把纯图片作答判成空/错"的情况
+      let answerImageKey: string | undefined;
+      if (currentImage) {
+        setAnswerUploading(true);
+        try {
+          const uploadForm = new FormData();
+          uploadForm.append('file', currentImage);
+          const uploadRes = await fetch('/api/upload', { method: 'POST', body: uploadForm });
+          const uploadData = await uploadRes.json().catch(() => ({}));
+          if (!uploadRes.ok || !uploadData?.key) {
+            throw new Error(uploadData?.error || `HTTP ${uploadRes.status}`);
+          }
           answerImageKey = uploadData.key;
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          console.error('答题图片上传失败', e);
+          setAnswerUploading(false);
+          // 不提交、不清空输入与图片，学生可直接重试或改成文字作答
+          alert(`图片上传失败（${msg}）。请检查网络后重试，也可以改为文字作答。`);
+          return;
         }
-      } catch (e) {
-        console.error('答题图片上传失败', e);
-      } finally {
         setAnswerUploading(false);
       }
-    }
-    // 清空答题图片
-    setAnswerImage(null);
-    setAnswerImagePreview(null);
 
-    const body: Record<string, unknown> = {
-      session_id: sessionId,
-      mode: 'teacher',
-      answer,
-      image_key: answerImageKey,
-    };
+      // 上传成功后才显示学生答案消息（避免"假提交"）
+      setMessages(prev => [...prev, {
+        role: 'student',
+        content: currentImage ? `【我的答案】${answer || '（已上传图片作答）'}` : `【我的答案】${answer}`,
+        imagePreview: currentPreview || undefined,
+      }]);
+      setAnswerInput('');
+      setShowAnswerInput(false);
+      autoContinueRef.current = false;
+      setJudgeFeedback(null);
+      setAnswerImage(null);
+      setAnswerImagePreview(null);
 
-    await streamChat(
-      body,
-      'teacher',
-      (state) => {
-        if (state) {
-          if (state.phase === 'finished') {
-            setFinished(true);
-            setShowAnswerInput(false);
-          } else if (state.phase === 'teaching' && (state.question_index ?? 0) > questionIndex) {
-            // 出了新题，显示答题输入框
-            setShowAnswerInput(true);
+      const body: Record<string, unknown> = {
+        session_id: sessionId,
+        mode: 'teacher',
+        answer,
+        image_key: answerImageKey,
+      };
+
+      await streamChat(
+        body,
+        'teacher',
+        (state) => {
+          if (state) {
+            if (state.phase === 'finished') {
+              setFinished(true);
+              setShowAnswerInput(false);
+            } else if (state.phase === 'teaching' && (state.question_index ?? 0) > questionIndex) {
+              // 出了新题，显示答题输入框
+              setShowAnswerInput(true);
+            }
           }
         }
-      }
-    );
+      );
+    } finally {
+      submittingRef.current = false;
+    }
   };
 
   // 答题图片选择（压缩到短边 1080，避免视觉模型报 2048x2048 超限）

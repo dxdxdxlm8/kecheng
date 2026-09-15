@@ -86,6 +86,27 @@ const FIXED_EXERCISES = [
 ];
 
 /**
+ * 判题中的会话锁（进程内）：key = session_id:question_index -> 加锁时间戳。
+ * 学生连点提交、网络重试、多标签页并发时，同一题只允许一个判题在跑，
+ * 避免重复判题导致 answer_records 重复落库、correct_count 虚高。
+ * 带 TTL 兜底：即使异常路径漏了释放，超时后自动可再次判题，不会永久卡死。
+ * 单进程部署（pm2 fork）下有效；未来多实例部署需改为数据库层幂等。
+ */
+const judgingLocks = new Map<string, number>();
+const JUDGE_LOCK_TTL_MS = 120_000; // 判题最长约 60s，留足余量
+
+function acquireJudgeLock(key: string): boolean {
+  const lockedAt = judgingLocks.get(key);
+  if (lockedAt !== undefined && Date.now() - lockedAt < JUDGE_LOCK_TTL_MS) return false;
+  judgingLocks.set(key, Date.now());
+  return true;
+}
+
+function releaseJudgeLock(key: string): void {
+  judgingLocks.delete(key);
+}
+
+/**
  * 三道固定练习题的结论词。答案本身就是单一结论，
  * 用于① 在判题提示里把判定标准简化成"结论比对"；② 文字作答时程序精确判定。
  */
@@ -573,20 +594,23 @@ export async function POST(request: NextRequest) {
       });
 
   // 8. 保存学生消息（学伴开场触发时不保存）
-  if (!isTrigger) {
-    // 纯图片作答（没打字）也要落一条消息，否则历史记录里图片就丢了
-    const studentContent = isJudging
-      ? (answer || (image_key ? '[图片作答]' : ''))
-      : (message || '[图片]');
-    if (studentContent) {
-      await supabase.from('interaction_records').insert({
-        student_id,
-        session_id,
-        role: 'student',
-        content: studentContent,
-        image_key: image_key || null,
-      });
-    }
+  // 判题场景延后到判题成功后再落库：判题失败（限流 429 / 超时）时不残留孤立的作答消息，
+  // 让"学生答案"与"答题记录"一致地保持未提交状态，学生可以直接重试
+  const pendingStudentContent = isJudging
+    ? (answer || (image_key ? '[图片作答]' : ''))
+    : (message || '[图片]');
+  const saveStudentMessage = async () => {
+    if (isTrigger || !pendingStudentContent) return;
+    await supabase.from('interaction_records').insert({
+      student_id,
+      session_id,
+      role: 'student',
+      content: pendingStudentContent,
+      image_key: image_key || null,
+    });
+  };
+  if (!isJudging) {
+    await saveStudentMessage();
   }
 
   // 9. 构造 LLM messages
@@ -667,10 +691,18 @@ export async function POST(request: NextRequest) {
   const encoder = new TextEncoder();
 
   if (isJudging) {
+    // 【幂等保护】同一会话同一题同时只允许一个判题在跑：
+    // 连点提交 / 网络重试 / 多标签页并发时，后来的请求直接拒绝，
+    // 不会重复调用模型、重复落 answer_records、重复累加 correct_count
+    const judgeLockKey = `${session_id}:${state?.question_index || 0}`;
+    if (!acquireJudgeLock(judgeLockKey)) {
+      return sseError('这道题正在判题中，请稍等片刻再查看结果，不要重复提交');
+    }
+
     let parsed: JudgeResult | null = null;
     let lastError = '';
 
-    for (let attempt = 1; attempt <= 2 && !parsed; attempt++) {
+    for (let attempt = 1; attempt <= 3 && !parsed; attempt++) {
       try {
         const raw = await invokeChat(messages, llmConfig, {
           temperature: 0.3,
@@ -686,10 +718,22 @@ export async function POST(request: NextRequest) {
         lastError = e instanceof Error ? e.message : String(e);
         console.warn(`[judge] 第 ${attempt} 次调用失败：`, lastError);
       }
+      // 【退避重试】课堂高并发下判题接口容易触发 429 限流，立刻重试必然再失败，
+      // 所以按错误类型等待：限流/网关错误等久一些（3s、6s），其它错误短等（0.8s、1.6s）
+      if (!parsed && attempt < 3) {
+        const waitMs = /429|Too Many Requests|502|503|504/i.test(lastError)
+          ? 3000 * attempt
+          : 800 * attempt;
+        console.warn(`[judge] 等待 ${waitMs}ms 后重试（第 ${attempt + 1} 次）`);
+        await new Promise((resolve) => setTimeout(resolve, waitMs));
+      }
     }
 
     if (!parsed) {
-      return sseError(`判题失败（已自动重试一次）：${lastError}`);
+      // 判题彻底失败：不落任何数据（学生答案也尚未落库），学生可直接重试，
+      // 不会出现"记录已写入却显示判题失败"的状态不一致
+      releaseJudgeLock(judgeLockKey);
+      return sseError(`判题失败（已自动重试 2 次）：${lastError}`);
     }
 
     // 文字作答时用程序精确判定（模型出现过"review 说答对了、judgement 却给 false"的自相矛盾）；
@@ -708,6 +752,9 @@ export async function POST(request: NextRequest) {
     const displayContent = nextExerciseText
       ? `${parsed.review.trim()}\n\n---\n\n${nextExerciseText}`
       : parsed.review.trim();
+
+    // 判题成功：此时才补落学生答案消息（判题失败不会走到这里，保证数据一致）
+    await saveStudentMessage();
 
     // 保存教师回复
     await supabase.from('interaction_records').insert({
@@ -772,6 +819,9 @@ export async function POST(request: NextRequest) {
     if (existingState && existingState.length > 0) {
       await supabase.from('session_states').update(updateFields).eq('id', existingState[0].id);
     }
+
+    // 判题与落库全部完成，释放幂等锁（后续正常提交可继续处理）
+    releaseJudgeLock(judgeLockKey);
 
     // SSE：review 全文一次性下发（前端打字机展示），附带判定与状态
     // 注意：数据在上面已全部落库，这里若客户端已断开（手机锁屏/网络闪断）
