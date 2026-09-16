@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { requireTeacherAuth } from '@/lib/auth/teacher';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authError = requireTeacherAuth(request);
+  if (authError) return authError;
+
   try {
     const client = getSupabaseClient();
     const { data, error } = await client
@@ -18,6 +22,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const authError = requireTeacherAuth(request);
+  if (authError) return authError;
+
   try {
     const { title, content, image_key } = await request.json();
     if (!title || !content) {
@@ -40,6 +47,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  const authError = requireTeacherAuth(request);
+  if (authError) return authError;
+
   try {
     const { id, title, content, image_key } = await request.json();
     if (!id) {
@@ -69,6 +79,9 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const authError = requireTeacherAuth(request);
+  if (authError) return authError;
+
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');

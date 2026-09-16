@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { requireTeacherAuth } from '@/lib/auth/teacher';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,7 +10,10 @@ const EXERCISE_LABELS: Record<string, string> = {
   exercise_3: '练习3',
 };
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authError = requireTeacherAuth(request);
+  if (authError) return authError;
+
   try {
     const supabase = getSupabaseClient();
     // 获取所有学生的答题记录（仅限三道固定练习），按时间升序

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { FileText, MessageSquare, BarChart3, LogOut, Users, Target, Cpu, Trash2 } from 'lucide-react';
+import { logoutTeacher } from '@/lib/auth/teacher-client';
 // 公开课隐藏：知识点管理/引导话术入口（BookOpen、Lightbulb 图标随菜单项一起注释）
 
 interface TeacherUser {
@@ -39,8 +40,8 @@ export default function TeacherDashboardPage() {
     // }).catch(() => {});
   }, [router]);
 
-  const handleLogout = () => {
-    localStorage.removeItem('teacher_token');
+  const handleLogout = async () => {
+    await logoutTeacher();
     localStorage.removeItem('teacher_user');
     router.push('/teacher/login');
   };

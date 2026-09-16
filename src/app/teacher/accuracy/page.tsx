@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Target, CheckCircle2, XCircle, MinusCircle, LogOut, FileText } from 'lucide-react';
+import { logoutTeacher, teacherFetch } from '@/lib/auth/teacher-client';
 
 interface StudentAccuracy {
   name: string;
@@ -45,7 +46,7 @@ export default function TeacherAccuracyPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/answers/accuracy');
+      const res = await teacherFetch('/api/answers/accuracy');
       const result = await res.json();
       if (result.success) {
         setData(result.data);
@@ -61,8 +62,8 @@ export default function TeacherAccuracyPage() {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('teacher_token');
+  const handleLogout = async () => {
+    await logoutTeacher();
     localStorage.removeItem('teacher_user');
     router.push('/teacher/login');
   };

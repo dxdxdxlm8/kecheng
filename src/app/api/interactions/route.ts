@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { getSystemSettings } from '@/lib/settings';
 import { generatePresignedUrl, isStorageConfigured } from '@/lib/storage/object-storage';
+import { requireTeacherAuth } from '@/lib/auth/teacher';
 
 // 将旧 role 值归一化为新双 Agent 体系
 function normalizeRole(role: string): string {
@@ -141,6 +142,10 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  // 删除互动记录仅教师端使用（学生端只读 GET），因此要求教师身份
+  const authError = requireTeacherAuth(request);
+  if (authError) return authError;
+
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');

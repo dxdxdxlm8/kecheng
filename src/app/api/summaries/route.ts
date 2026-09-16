@@ -1,7 +1,11 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { requireTeacherAuth } from '@/lib/auth/teacher';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authError = requireTeacherAuth(request);
+  if (authError) return authError;
+
   try {
     const client = getSupabaseClient();
 

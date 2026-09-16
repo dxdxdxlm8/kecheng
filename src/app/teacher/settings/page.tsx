@@ -17,6 +17,7 @@ import {
   Wand2,
   XCircle,
 } from 'lucide-react';
+import { teacherFetch } from '@/lib/auth/teacher-client';
 
 interface LlmFormState {
   baseUrl: string;
@@ -155,7 +156,7 @@ export default function TeacherSettingsPage() {
   const fetchSettings = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/settings');
+      const res = await teacherFetch('/api/settings');
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || '读取失败');
       const data = json.data;
@@ -258,7 +259,7 @@ export default function TeacherSettingsPage() {
     setSaving(true);
     try {
       const payload = buildPayload();
-      const res = await fetch('/api/settings', {
+      const res = await teacherFetch('/api/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -283,7 +284,7 @@ export default function TeacherSettingsPage() {
     setResult(null);
     try {
       const payload = buildPayload();
-      const res = await fetch('/api/settings/test', {
+      const res = await teacherFetch('/api/settings/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ scope, settings: payload }),

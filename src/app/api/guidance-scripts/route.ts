@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { requireTeacherAuth } from '@/lib/auth/teacher';
 
 // 全局教师 Prompt：全表只保留一份（最新一条），语义为"教师 Agent 教学策略 Prompt"
 // 保留多行记录以兼容历史，应用层一律取最新一条
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authError = requireTeacherAuth(request);
+  if (authError) return authError;
+
   try {
     const client = getSupabaseClient();
     const { data, error } = await client
@@ -23,6 +27,9 @@ export async function GET() {
 
 // 创建或更新全局教师 Prompt（upsert 语义：已有则更新第一条，无则创建）
 export async function POST(request: NextRequest) {
+  const authError = requireTeacherAuth(request);
+  if (authError) return authError;
+
   try {
     const { title, content } = await request.json();
     if (!content || !content.trim()) {
@@ -69,6 +76,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const authError = requireTeacherAuth(request);
+  if (authError) return authError;
+
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');

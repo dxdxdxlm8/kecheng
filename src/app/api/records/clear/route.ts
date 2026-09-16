@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { requireTeacherAuth } from '@/lib/auth/teacher';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,7 +25,16 @@ function isTargetKey(v: unknown): v is TargetKey {
 // 用 created_at 下界兜住所有行（所有相关表都有该字段且默认 now()）
 const EARLIEST = '1970-01-01T00:00:00Z';
 
-export async function GET() {
+/**
+ * 清空操作的确认串：前端在用户确认弹窗后随请求体一起提交。
+ * 用于拦住误调用/脚本误触这类"没有人明确确认"的删除请求。
+ */
+export const CLEAR_CONFIRM_VALUE = 'CLEAR_ALL_DATA';
+
+export async function GET(request: NextRequest) {
+  const authError = requireTeacherAuth(request);
+  if (authError) return authError;
+
   try {
     const client = getSupabaseClient();
     const counts: Record<string, number> = {};
@@ -49,8 +59,21 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  // 【危险操作加固】① 必须是教师身份；② 请求体必须带确认串。
+  // 此前接口无鉴权即可全表删除，任意人调用就能销毁全班数据。
+  const authError = requireTeacherAuth(request);
+  if (authError) return authError;
+
   try {
     const body = await request.json();
+
+    if (body?.confirm !== CLEAR_CONFIRM_VALUE) {
+      return NextResponse.json(
+        { error: '缺少确认标识，已拒绝执行清空操作' },
+        { status: 400 }
+      );
+    }
+
     const targets = Array.isArray(body?.targets) ? body.targets.filter(isTargetKey) : [];
 
     if (targets.length === 0) {

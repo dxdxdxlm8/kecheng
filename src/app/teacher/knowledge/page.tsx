@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { BookOpen, Plus, Trash2, ImagePlus, X, LogOut, LayoutDashboard } from 'lucide-react';
+import { logoutTeacher, teacherFetch } from '@/lib/auth/teacher-client';
 
 interface KnowledgePoint {
   id: string;
@@ -35,7 +36,7 @@ export default function KnowledgePage() {
 
   const fetchPoints = async () => {
     try {
-      const res = await fetch('/api/knowledge-points');
+      const res = await teacherFetch('/api/knowledge-points');
       const data = await res.json();
       const pts: KnowledgePoint[] = data.data || [];
       setPoints(pts);
@@ -53,7 +54,7 @@ export default function KnowledgePage() {
 
   const loadImageUrl = async (pointId: string, key: string) => {
     try {
-      const res = await fetch(`/api/signed-url?key=${encodeURIComponent(key)}`);
+      const res = await teacherFetch(`/api/signed-url?key=${encodeURIComponent(key)}`);
       const data = await res.json();
       if (data.url) {
         setImageUrls(prev => ({ ...prev, [pointId]: data.url }));
@@ -91,7 +92,7 @@ export default function KnowledgePage() {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const res = await fetch('/api/upload', { method: 'POST', body: formData });
+      const res = await teacherFetch('/api/upload', { method: 'POST', body: formData });
       const data = await res.json();
       return data.key || null;
     } catch (err) {
@@ -109,7 +110,7 @@ export default function KnowledgePage() {
         imageKey = await uploadImage(selectedImage);
       }
 
-      const res = await fetch('/api/knowledge-points', {
+      const res = await teacherFetch('/api/knowledge-points', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: title.trim(), content: content.trim(), image_key: imageKey }),
@@ -134,7 +135,7 @@ export default function KnowledgePage() {
   const handleDelete = async (id: string) => {
     if (!confirm('确定删除该知识点？')) return;
     try {
-      await fetch(`/api/knowledge-points?id=${id}`, { method: 'DELETE' });
+      await teacherFetch(`/api/knowledge-points?id=${id}`, { method: 'DELETE' });
       setPoints(prev => prev.filter(p => p.id !== id));
       setImageUrls(prev => {
         const next = { ...prev };
@@ -176,7 +177,7 @@ export default function KnowledgePage() {
                 仪表盘
               </button>
               <button
-                onClick={() => { localStorage.removeItem('teacher_token'); router.push('/teacher/login'); }}
+                onClick={() => { void logoutTeacher(); router.push('/teacher/login'); }}
                 className="flex items-center gap-1 text-sm text-gray-500 hover:text-red-600 transition"
               >
                 <LogOut className="w-4 h-4" />

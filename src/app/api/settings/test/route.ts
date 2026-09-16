@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSystemSettings } from '@/lib/settings';
+import { requireTeacherAuth } from '@/lib/auth/teacher';
 import {
   invokeChat,
   isAsrConfigured,
@@ -59,6 +60,9 @@ function makeTestToneWav(seconds = 0.3, sampleRate = 16_000, freq = 440): Buffer
  * body: { scope: 'llm' | 'storage', settings?: {...} }
  */
 export async function POST(request: NextRequest) {
+  const authError = requireTeacherAuth(request);
+  if (authError) return authError;
+
   try {
     const body = (await request.json()) as TestRequestBody;
 

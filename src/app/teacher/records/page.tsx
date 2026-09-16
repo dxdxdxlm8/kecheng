@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Trash2, AlertTriangle, LogOut, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import { logoutTeacher, teacherFetch } from '@/lib/auth/teacher-client';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -69,7 +70,7 @@ export default function TeacherRecordsPage() {
   const loadCounts = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/records/clear');
+      const res = await teacherFetch('/api/records/clear');
       const data = await res.json();
       if (data.success) {
         setCounts(data.counts || {});
@@ -83,8 +84,8 @@ export default function TeacherRecordsPage() {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('teacher_token');
+  const handleLogout = async () => {
+    await logoutTeacher();
     localStorage.removeItem('teacher_user');
     router.push('/teacher/login');
   };
@@ -101,10 +102,11 @@ export default function TeacherRecordsPage() {
     setClearing(true);
     setError('');
     try {
-      const res = await fetch('/api/records/clear', {
+      const res = await teacherFetch('/api/records/clear', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targets: selectedKeys }),
+        // confirm 为服务端要求的确认串，缺少会被拒绝（防误触/脚本误删）
+        body: JSON.stringify({ targets: selectedKeys, confirm: 'CLEAR_ALL_DATA' }),
       });
       const data = await res.json();
       if (data.success) {

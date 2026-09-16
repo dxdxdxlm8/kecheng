@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Plus, Trash2, Users, Loader2 } from 'lucide-react';
+import { teacherFetch } from '@/lib/auth/teacher-client';
 
 type CompanionLevel = 'normal' | 'advanced';
 
@@ -37,12 +38,15 @@ export default function StudentsManagePage() {
   }, [router]);
 
   const fetchStudents = async () => {
+    setError('');
     try {
-      const res = await fetch('/api/students');
+      const res = await teacherFetch('/api/students');
       const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
       setStudents(data.data || []);
     } catch (err) {
       console.error('Fetch students error:', err);
+      setError(err instanceof Error ? err.message : '加载学生名单失败');
     } finally {
       setLoading(false);
     }
@@ -54,7 +58,7 @@ export default function StudentsManagePage() {
     setError('');
 
     try {
-      const res = await fetch('/api/students', {
+      const res = await teacherFetch('/api/students', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newName.trim(), companion_level: newLevel }),
@@ -90,7 +94,7 @@ export default function StudentsManagePage() {
 
     for (const name of names) {
       try {
-        const res = await fetch('/api/students', {
+        const res = await teacherFetch('/api/students', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, companion_level: batchLevel }),
@@ -121,7 +125,7 @@ export default function StudentsManagePage() {
     const next: CompanionLevel = student.companion_level === 'normal' ? 'advanced' : 'normal';
     setTogglingId(student.id);
     try {
-      const res = await fetch('/api/students', {
+      const res = await teacherFetch('/api/students', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: student.id, companion_level: next }),
@@ -141,7 +145,7 @@ export default function StudentsManagePage() {
     if (!confirm(`确定要删除学生"${name}"吗？该学生的所有互动记录和答题记录也将被删除。`)) return;
 
     try {
-      const res = await fetch(`/api/students?id=${id}`, { method: 'DELETE' });
+      const res = await teacherFetch(`/api/students?id=${id}`, { method: 'DELETE' });
       if (res.ok) {
         setStudents(prev => prev.filter(s => s.id !== id));
       }

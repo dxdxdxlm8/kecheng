@@ -3,8 +3,12 @@ import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { getSystemSettings } from '@/lib/settings';
 import { invokeChat, isLlmConfigured } from '@/lib/llm/client';
 import type { ChatMessage } from '@/lib/llm/types';
+import { requireTeacherAuth } from '@/lib/auth/teacher';
 
 export async function POST(request: NextRequest) {
+  const authError = requireTeacherAuth(request);
+  if (authError) return authError;
+
   try {
     const { knowledge_point_id, count = 3, question_type = 'mixed' } = await request.json();
 

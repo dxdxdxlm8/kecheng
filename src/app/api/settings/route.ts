@@ -7,6 +7,7 @@ import {
 } from '@/lib/settings';
 import { resolveAudioTranscriptionsUrl, resolveChatCompletionsUrl } from '@/lib/llm/client';
 import { isStorageConfigured } from '@/lib/storage/object-storage';
+import { requireTeacherAuth } from '@/lib/auth/teacher';
 
 const MASK_CHAR = '•';
 
@@ -98,7 +99,10 @@ function toResponse(settings: SystemSettings): SettingsResponse {
   };
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authError = requireTeacherAuth(request);
+  if (authError) return authError;
+
   try {
     const settings = await getSystemSettings();
     return NextResponse.json(toResponse(settings));
@@ -109,6 +113,9 @@ export async function GET() {
 }
 
 export async function PUT(request: NextRequest) {
+  const authError = requireTeacherAuth(request);
+  if (authError) return authError;
+
   try {
     const body = (await request.json()) as Partial<SettingsPayload>;
     const current = await getSystemSettings();

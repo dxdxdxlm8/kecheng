@@ -3,6 +3,7 @@
 import { useEffect, useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Plus, Edit2, Trash2, X } from 'lucide-react';
+import { teacherFetch } from '@/lib/auth/teacher-client';
 
 interface TeacherPrompt {
   id: string;
@@ -31,7 +32,7 @@ export default function GuidancePage() {
 
   const fetchPrompt = async () => {
     try {
-      const res = await fetch('/api/guidance-scripts');
+      const res = await teacherFetch('/api/guidance-scripts');
       const data = await res.json();
       setPrompt(data.data || null);
     } catch (err) {
@@ -46,7 +47,7 @@ export default function GuidancePage() {
     if (!content.trim()) return;
     setSaving(true);
     try {
-      const res = await fetch('/api/guidance-scripts', {
+      const res = await teacherFetch('/api/guidance-scripts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: title.trim() || '教师 Prompt', content }),
@@ -80,7 +81,7 @@ export default function GuidancePage() {
     if (!prompt) return;
     if (!confirm('确定删除该教师 Prompt？删除后双 Agent 教学流程将缺少教学策略。')) return;
     try {
-      await fetch(`/api/guidance-scripts?id=${prompt.id}`, { method: 'DELETE' });
+      await teacherFetch(`/api/guidance-scripts?id=${prompt.id}`, { method: 'DELETE' });
       setPrompt(null);
     } catch (err) {
       console.error('Delete error:', err);

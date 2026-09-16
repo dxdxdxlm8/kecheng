@@ -17,13 +17,27 @@ interface Message {
   content: string;
   imagePreview?: string;
   isStreaming?: boolean;
+  /** 流式等待期间的提示文案（如判题耗时长，提示学生耐心等待） */
+  hint?: string;
+}
+
+/** 答题草稿的本地存储 key（按会话隔离，刷新后可恢复未提交的输入） */
+const answerDraftKey = (sessionId: string) => `kecheng_answer_draft_${sessionId}`;
+/** 最近一次判题结果的本地存储 key（刷新后仍能显示对错反馈） */
+const judgeFeedbackKey = (sessionId: string) => `kecheng_judge_feedback_${sessionId}`;
+
+function readStoredValue(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
 }
 
 interface SessionInfo {
   session_id: string;
   last_message: string;
-  last_time: string;
-  message_count: number;
+  last_time: string;  message_count: number;
 }
 
 interface SessionState {
@@ -146,8 +160,24 @@ export default function StudentChatPage() {
   const autoContinueRef = useRef(false);
   // 提交同步锁：上传/判题期间防止连点重复提交（state 更新是异步的，挡不住同一帧的重复点击）
   const submittingRef = useRef(false);
+  // 建模/讨论阶段发送锁：作用同上，防止连点重复发消息与重复上传图片
+  const sendingRef = useRef(false);
   // 判题回复打字机（"假流式"：后端一次性下发全文，前端逐字展示）
   const typewriterRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // 答题草稿自动保存：学生写了一半刷新/误关页面，回来还能接着写
+  useEffect(() => {
+    if (!sessionId) return;
+    try {
+      if (answerInput) {
+        localStorage.setItem(answerDraftKey(sessionId), answerInput);
+      } else {
+        localStorage.removeItem(answerDraftKey(sessionId));
+      }
+    } catch {
+      /* localStorage 不可用时忽略 */
+    }
+  }, [answerInput, sessionId]);
 
   // 组件卸载时清理打字机
   useEffect(() => () => {
@@ -261,8 +291,12 @@ export default function StudentChatPage() {
       setMessages(loadedMessages);
       setShowHistory(false);
       setShowAnswerInput(false);
-      setAnswerInput('');
-      setJudgeFeedback(null);
+      // 恢复草稿与上次判题结果：刷新页面后不丢未提交的输入，也不丢对错反馈
+      setAnswerInput(readStoredValue(answerDraftKey(sid)) || '');
+      const storedFeedback = readStoredValue(judgeFeedbackKey(sid));
+      setJudgeFeedback(
+        storedFeedback === 'correct' || storedFeedback === 'wrong' ? storedFeedback : null
+      );
 
       const st = stateData.data;
       if (st) {
@@ -344,7 +378,16 @@ export default function StudentChatPage() {
     if (!user) return;
     setLoading(true);
     // 添加 agent 占位消息
-    setMessages(prev => [...prev, { role: agentRole, content: '', isStreaming: true }]);
+    // 判题请求要等模型批改（通常 10~30 秒），给出明确提示，
+    // 避免学生以为卡死而反复点提交
+    const isJudgeRequest =
+      agentRole === 'teacher' && typeof body.answer === 'string' && !body.action;
+    setMessages(prev => [...prev, {
+      role: agentRole,
+      content: '',
+      isStreaming: true,
+      hint: isJudgeRequest ? '老师正在批改这道题，大约需要 10~30 秒，请稍候…' : undefined,
+    }]);
 
     try {
       let imageKey: string | undefined;
@@ -465,7 +508,14 @@ export default function StudentChatPage() {
               }
               if (data.judged === true) {
                 // 教师判题回传：judgement=true/false，据此显示作答对错
-                setJudgeFeedback(data.is_correct ? 'correct' : 'wrong');
+                const feedback = data.is_correct ? 'correct' : 'wrong';
+                setJudgeFeedback(feedback);
+                // 持久化：刷新页面后仍能显示本题对错
+                try {
+                  if (sessionId) localStorage.setItem(judgeFeedbackKey(sessionId), feedback);
+                } catch {
+                  /* localStorage 不可用时忽略 */
+                }
               }
               if (typeof data.evaluation === 'string' && data.evaluation) {
                 setPracticeEvaluation(data.evaluation);
@@ -536,6 +586,9 @@ export default function StudentChatPage() {
   // 普通发送（建模讨论阶段走小航，练习阶段走教师）
   const handleSend = async () => {
     if ((!input.trim() && !selectedImage) || loading || !user || !sessionId || finished) return;
+    // 同步锁防连点（同一帧内的重复点击 state 还没更新，挡不住）
+    if (sendingRef.current) return;
+    sendingRef.current = true;
 
     const userMessage = input.trim();
     const currentImage = selectedImage;
@@ -555,6 +608,7 @@ export default function StudentChatPage() {
 
     // 建模阶段：学生输入"练习"触发练习
     if (phase === 'modeling' && userMessage === '练习') {
+      sendingRef.current = false;
       startPractice();
       return;
     }
@@ -572,7 +626,11 @@ export default function StudentChatPage() {
     if (mode === 'teacher') body.answer = userMessage;
     if (currentImage) body.image_file = currentImage;
 
-    await streamChat(body, agentRole);
+    try {
+      await streamChat(body, agentRole);
+    } finally {
+      sendingRef.current = false;
+    }
   };
 
   // 答题提交
@@ -1052,7 +1110,11 @@ export default function StudentChatPage() {
                           )}
                           <MathText content={displayContent} />
                           {msg.isStreaming && (
-                            <span className="inline-block w-1.5 h-4 bg-gray-400 animate-pulse ml-0.5 align-middle" />
+                            msg.hint ? (
+                              <span className="text-xs text-gray-500">{msg.hint}</span>
+                            ) : (
+                              <span className="inline-block w-1.5 h-4 bg-gray-400 animate-pulse ml-0.5 align-middle" />
+                            )
                           )}
                         </div>
                       </div>

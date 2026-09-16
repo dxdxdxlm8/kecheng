@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Download, Eye } from 'lucide-react';
+import { teacherFetch } from '@/lib/auth/teacher-client';
 import {
   Dialog,
   DialogContent,
@@ -38,6 +39,7 @@ export default function SummariesPage() {
   const router = useRouter();
   const [data, setData] = useState<StudentSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [dialogStudent, setDialogStudent] = useState<StudentSummary | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -50,12 +52,16 @@ export default function SummariesPage() {
   }, [router]);
 
   const fetchData = async () => {
+    setError('');
     try {
-      const res = await fetch('/api/summaries');
+      const res = await teacherFetch('/api/summaries');
       const result = await res.json();
+      if (!res.ok) throw new Error(result?.error || `HTTP ${res.status}`);
       setData(result.data || []);
     } catch (err) {
+      // 不再只写 console：把失败明确展示出来，避免用户停在空白页
       console.error('Fetch error:', err);
+      setError(err instanceof Error ? err.message : '加载失败');
     } finally {
       setLoading(false);
     }
@@ -128,6 +134,16 @@ export default function SummariesPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
         {loading ? (
           <div className="text-center py-12 text-gray-500">加载中...</div>
+        ) : error ? (
+          <div className="text-center py-12">
+            <p className="text-red-600 mb-3">加载失败：{error}</p>
+            <button
+              onClick={fetchData}
+              className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700"
+            >
+              重试
+            </button>
+          </div>
         ) : data.length === 0 ? (
           <div className="text-center py-12 text-gray-500">暂无学情数据，学生需要先完成互动和学习</div>
         ) : (

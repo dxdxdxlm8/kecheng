@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, MessageSquare, ClipboardList, Trash2 } from 'lucide-react';
+import { teacherFetch } from '@/lib/auth/teacher-client';
 
 interface Student {
   id: string;
@@ -96,7 +97,7 @@ export default function InteractionsPage() {
 
   const fetchStudents = async () => {
     try {
-      const res = await fetch('/api/summaries');
+      const res = await teacherFetch('/api/summaries');
       const data = await res.json();
       setStudents((data.data || []).map((s: { id: string; name: string }) => ({ id: s.id, name: s.name })));
     } catch (err) {
@@ -108,7 +109,7 @@ export default function InteractionsPage() {
     if (!studentId) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/interactions?student_id=${studentId}`);
+      const res = await teacherFetch(`/api/interactions?student_id=${studentId}`);
       const data = await res.json();
       setInteractions(data.data || []);
       setPracticeEvaluations(data.practiceEvaluations || {});
@@ -158,7 +159,7 @@ export default function InteractionsPage() {
     setDeleting(true);
     try {
       const ids = Array.from(selectedIds).join(',');
-      const res = await fetch(`/api/interactions?ids=${encodeURIComponent(ids)}`, { method: 'DELETE' });
+      const res = await teacherFetch(`/api/interactions?ids=${encodeURIComponent(ids)}`, { method: 'DELETE' });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error || '删除失败');
       await fetchInteractions(selectedStudent);
