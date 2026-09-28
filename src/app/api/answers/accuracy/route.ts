@@ -1,6 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
-import { requireTeacherAuth } from '@/lib/auth/teacher';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,29 +9,31 @@ const EXERCISE_LABELS: Record<string, string> = {
   exercise_3: '练习3',
 };
 
-export async function GET(request: NextRequest) {
-  const authError = requireTeacherAuth(request);
-  if (authError) return authError;
-
+export async function GET() {
   try {
     const supabase = getSupabaseClient();
-    // 获取所有学生的答题记录（仅限三道固定练习），按时间升序
-    const { data: records, error } = await supabase
-      .from('answer_records')
-      .select('student_id, question_id, is_correct, created_at')
-      .in('question_id', ['exercise_1', 'exercise_2', 'exercise_3'])
-      .order('created_at', { ascending: true });
+
+    // ⚠️ 两个查询互不依赖，并行发。串行会让跨境到 Supabase 的 RTT 累加（单次 ~150ms）。
+    const [
+      { data: records, error },
+      { data: students, error: studentError },
+    ] = await Promise.all([
+      // 获取所有学生的答题记录（仅限三道固定练习），按时间升序
+      supabase
+        .from('answer_records')
+        .select('student_id, question_id, is_correct, created_at')
+        .in('question_id', ['exercise_1', 'exercise_2', 'exercise_3'])
+        .order('created_at', { ascending: true }),
+      // 获取学生列表
+      supabase
+        .from('students')
+        .select('id, name')
+        .order('name', { ascending: true }),
+    ]);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-
-    // 获取学生列表
-    const { data: students, error: studentError } = await supabase
-      .from('students')
-      .select('id, name')
-      .order('name', { ascending: true });
-
     if (studentError) {
       return NextResponse.json({ error: studentError.message }, { status: 500 });
     }
