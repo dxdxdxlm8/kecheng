@@ -10,8 +10,8 @@
 # 用法：
 #   set SSH_PASS=xxxx
 #   python run-loadtest.py \
-#     --ssh-host 103.115.56.210 --ssh-port 22 --ssh-user root \
-#     --target-host 103.115.56.210 --target-port 80 \
+#     --ssh-host <被测服务器IP> --ssh-port 2537 --ssh-user root \
+#     --target-host <被测服务器IP> --target-port 80 \
 #     --conc 30 --duration 30 --assets --paths /student/login
 #
 # 依赖：paramiko（本机 venv 已装）

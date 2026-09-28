@@ -14,7 +14,7 @@
  *   5) 输出机器可读的 JSON 到 stdout，人读摘要到 stderr，方便编排脚本解析。
  *
  * 用法：
- *   TARGET_HOST=103.115.56.210 TARGET_PORT=80 CONC=30 DURATION=30 \
+ *   TARGET_HOST=<被测服务器IP> TARGET_PORT=80 CONC=30 DURATION=30 \
  *     ASSETS=1 PATHS=/student/login node loadtest.js
  *
  * 环境变量：

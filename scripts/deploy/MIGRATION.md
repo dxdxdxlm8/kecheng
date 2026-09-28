@@ -59,21 +59,136 @@ bash scripts/deploy/enable-ssl.sh shuxueyst.dpdns.org you@example.com --wait
 
 ---
 
-## 0. 现状快照（2026-09-10 采集）
+## 快速通道 B：两机直连 rsync（2026-09-28 实操验证）
+
+**适用场景**：新旧两台机器在同一内网（本项目实测 ping 延迟仅 3ms），且不想走本地中转。
+**优点**：790M 的 node_modules 不用搬（新机重装），实际只搬约 75M（代码 8.8M + apk 46M + .next 21M），
+全程 6 分钟搞定（install 2m18s + next build 1m18s + tsup 72ms）。
+
+**前提**：先在新机生成一把临时迁移密钥，装到旧机（旧机需临时 `PubkeyAuthentication yes`）。
+
+```bash
+# === 新机侧，除最后两步外都在新机执行 ===
+
+# 0) 打底：nginx + certbot + swap
+apt-get update -qq && apt-get install -y -qq nginx certbot python3-certbot-nginx
+fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+grep -q swapfile /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+mkdir -p /opt/kecheng /var/www/html
+
+# 1) 建免密：新机生成迁移密钥 -> 公钥写进旧机 authorized_keys
+ssh-keygen -t ed25519 -N '' -C 'migrate-tmp' -f /root/.ssh/id_migrate -q
+#（旧机侧：临时 sed 's/^PubkeyAuthentication no/yes/' /etc/ssh/sshd_config && systemctl reload ssh）
+cat >> /root/.ssh/config <<'EOF'
+Host oldserver
+    HostName <旧机IP>
+    Port <旧机SSH端口>
+    User root
+    IdentityFile /root/.ssh/id_migrate
+    IdentitiesOnly yes
+    StrictHostKeyChecking no
+    UserKnownHostsFile /dev/null
+EOF
+chmod 600 /root/.ssh/config
+ssh -o BatchMode=yes oldserver 'echo OK'   # 必须先通再往下
+
+# 2) 搬 Node 运行时（注意：不能只搬 node！见坑 #10）
+rsync -az oldserver:/usr/bin/node /usr/bin/node && chmod +x /usr/bin/node
+mkdir -p /usr/lib/node_modules
+rsync -az oldserver:/usr/lib/node_modules/{npm,corepack,pnpm,pm2} /usr/lib/node_modules/
+ln -sf ../lib/node_modules/npm/bin/npm-cli.js /usr/bin/npm
+ln -sf ../lib/node_modules/npm/bin/npx-cli.js /usr/bin/npx
+ln -sf ../lib/node_modules/corepack/dist/corepack.js /usr/bin/corepack
+ln -sf ../lib/node_modules/pnpm/bin/pnpm.cjs /usr/bin/pnpm
+ln -sf ../lib/node_modules/pm2/bin/pm2 /usr/bin/pm2
+node -v && npm -v && npx -v && pnpm -v && pm2 -v   # 五个都要有输出
+
+# 3) 搬代码（排除 node_modules/.next/dist）+ 静态资源 + 证书 + nginx + deploy key
+rsync -az --delete --exclude=node_modules --exclude=.next --exclude=dist \
+      oldserver:/opt/kecheng/ /opt/kecheng/
+rsync -az oldserver:/var/www/html/ /var/www/html/
+rsync -az oldserver:/etc/letsencrypt/ /etc/letsencrypt/
+rsync -az oldserver:/etc/nginx/sites-available/kecheng /etc/nginx/sites-available/kecheng
+ln -sf /etc/nginx/sites-available/kecheng /etc/nginx/sites-enabled/kecheng
+rm -f /etc/nginx/sites-enabled/default
+rsync -az oldserver:/root/.ssh/id_ed25519 oldserver:/root/.ssh/id_ed25519.pub /root/.ssh/
+chmod 600 /root/.ssh/id_ed25519
+nginx -t && systemctl reload nginx
+
+# 4) 装依赖 + 构建（两步都不能少）
+cd /opt/kecheng
+pnpm install --frozen-lockfile
+NODE_OPTIONS=--max-old-space-size=1200 npx next build
+npx tsup src/server.ts --format cjs --platform node --target node20 \
+    --outDir dist --no-splitting --no-minify
+
+# 5) 起服务 + 自启
+PORT=5000 NODE_ENV=production pm2 start dist/server.js --name kecheng --cwd /opt/kecheng
+pm2 save && pm2 startup systemd -u root --hp /root && systemctl enable pm2-root
+
+# 6) 验证（用 IP + Host 头，DNS 还没切也能验）
+curl -s -o /dev/null -w '%{http_code}\n' -H 'Host: shuxueyst.dpdns.org' http://127.0.0.1/
+curl -sk -o /dev/null -w '%{http_code}\n' -H 'Host: shuxueyst.dpdns.org' https://127.0.0.1/student/login
+curl -sk -X POST -H 'Host: shuxueyst.dpdns.org' -H 'Content-Type: application/json' \
+     -d '{"username":"admin","password":"admin123"}' https://127.0.0.1/api/auth/teacher/login
+```
+
+**收尾**（迁移完成后，把旧机的临时改动复原）：
+
+```bash
+# 旧机：恢复 sshd 配置
+mv /etc/ssh/sshd_config.bak.migrate /etc/ssh/sshd_config && sshd -t && systemctl reload ssh
+# 旧机 authorized_keys 里的 migrate 公钥可删可不删（留着当备用通道也行）
+# 新机：id_migrate 密钥留着或删掉，都不影响生产
+```
+
+**旧机保持运行**，等 DNS 切完、观察 24 小时确认无异常后再 `pm2 stop kecheng`。
+
+---
+
+## 0. 现状快照（2026-09-28 采集）
 
 | 项目 | 值 |
 |---|---|
-| 系统 | Ubuntu 22.04 LTS，x86_64，2G 内存 + 2G swap，39G 盘（用 5.8G） |
-| 运行时 | Node v20.20.2、pnpm 9.15.9、nginx 1.18.0、pm2 7.0.4 |
-| 应用目录 | `/opt/kecheng`（789M，含 node_modules 与 .next） |
+| **当前主机** | **156.238.244.18**（SSH 端口 **2537**，root/密码登录）|
+| 系统 | Ubuntu 22.04.5 LTS，x86_64，2G 内存 + 2G swap，29G 盘（用约 5.2G） |
+| 运行时 | Node v20.20.2、pnpm 9.15.9、npm 10.8.2、nginx 1.18.0、pm2 7.0.4 |
+| 应用目录 | `/opt/kecheng`（790M，含 node_modules 761M 与 .next 21M） |
 | 进程 | pm2 进程名 `kecheng`，监听 `127.0.0.1:5000`；`pm2-root.service` 已 enable（开机自启） |
-| 反代 | nginx 站点 `kecheng` → `proxy_pass http://127.0.0.1:5000` |
-| 域名 | `shuxueyst.dpdns.org` + `www.shuxueyst.dpdns.org` |
-| HTTPS | Let's Encrypt（Certbot 签发），`/etc/cron.d/certbot` 自动续期 |
-| SSH | 端口 **2537**（非 22），`/root/.ssh/id_ed25519` 是 GitHub Deploy Key（有写权限，用于 commit+push） |
-| 环境变量 | `/opt/kecheng/.env.local`，**只有 3 个键**：`SUPABASE_URL`、`SUPABASE_ANON_KEY`、`SUPABASE_SERVICE_ROLE_KEY` |
+| 反代 | nginx 站点 `kecheng` → `proxy_pass http://127.0.0.1:5000`；已开 **HTTP/2** + **gzip**（见下） |
+| 域名 | `shuxueyst.dpdns.org` + `www.shuxueyst.dpdns.org`（已生效） |
+| HTTPS | Let's Encrypt（Certbot 签发，证书有效期至 2026-11-27），`certbot.timer` 自动续期 |
+| 防火墙 | **ufw active**，放行 **80 / 443 / 2537**，默认 deny incoming |
+| 入侵防护 | **fail2ban enabled**（`[sshd]` bantime 1d / findtime 10min / maxretry 5；`[recidive]` 1天封4次→30天；监控 port 2537） |
+| SSH | 端口 **仅 2537**（22 已关闭）；`/root/.ssh/id_ed25519` 是 GitHub Deploy Key（已验证可 push） |
+| 环境变量 | `/opt/kecheng/.env.local`（权限 **600**），**4 个键**：`SUPABASE_URL`、`SUPABASE_ANON_KEY`、`SUPABASE_SERVICE_ROLE_KEY`、`TEACHER_TOKEN_SECRET`（2026-09-16 加的教师端会话签名密钥，**漏了会导致教师登录后立刻掉线**） |
 | 静态文件 | `/var/www/html/`：`1.apk`（46M，安卓客户端，学生端「下载 App」指向它）、`245793a2da3419e1ab25ec847cf29acb.txt`（域名/CA 验证文件） |
 | DNS | 域名 DNS 托管在 **Cloudflare**（换机器要改 A 记录指向新 IP，不是去 dpdns 改） |
+
+> **历史记录**：旧机 `147.161.35.177:2537` 曾与当前主机并行运行以观察 DNS 切换，
+> **已于 2026-09-28 彻底停用**（所有端口不可达）。相关凭据已从本项目清理，无需再保留。
+
+### nginx 性能配置（2026-09-28 优化，换机后要一并搬）
+
+`nginx.conf` 的 gzip 段（**`gzip_types` 必须显式列出，否则只压 text/html**）：
+```nginx
+gzip on; gzip_vary on; gzip_proxied any; gzip_comp_level 5; gzip_min_length 1024;
+gzip_buffers 16 8k; gzip_http_version 1.1;
+gzip_types text/plain text/css application/json application/javascript text/xml
+           application/xml application/xml+rss text/javascript application/wasm
+           image/svg+xml font/woff font/woff2;
+```
+`nginx.conf` http 层加（**`map` 不能写在 sites-enabled 里**）：
+```nginx
+map $http_upgrade $connection_upgrade { default upgrade; '' close; }
+```
+站点 `sites-available/kecheng`：
+```nginx
+listen 443 ssl http2;                    # HTTP/2
+listen [::]:443 ssl http2 ipv6only=on;
+proxy_set_header Connection $connection_upgrade;   # 条件化，别无条件 "upgrade"
+location /_next/static/ { alias /opt/kecheng/.next/static/; expires 1y; }  # 静态直出
+```
 
 **关键结论**：`.env.local` 里没有 LLM 配置和对象存储配置——
 LLM 配置存在数据库 `system_settings` 表（教师端「系统设置」页写入），
@@ -140,12 +255,17 @@ cat > /opt/kecheng/.env.local <<'EOF'
 SUPABASE_URL=https://xxx.supabase.co
 SUPABASE_ANON_KEY=eyJhbGci...
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGci...
+TEACHER_TOKEN_SECRET=<随机长串>
 EOF
 chmod 600 /opt/kecheng/.env.local
 ```
 
-只填这三个就够。LLM / 视觉模型 / 对象存储的默认值可按需补（见 `.env.example`），
-但实际用的 LLM 配置是从教师端「系统设置」写进数据库 `system_settings` 表的，优先级更高。
+**四个键**。前三个连 Supabase；`TEACHER_TOKEN_SECRET` 是教师端登录 token 的签名密钥，
+**必须与旧机一致**（否则已登录的教师会话失效）；换了机器想重新生成也行，但要通知教师重新登录。
+
+> ⚠️ 2026-09-28 迁移时踩过：MIGRATION.md 早先只写了 3 个键，实际 `.env.local` 有 4 个。
+> `TEACHER_TOKEN_SECRET` 是 2026-09-16 加的，漏搬会导致教师登录成功后立刻 401。
+> 判断方法：`grep -c "=" /opt/kecheng/.env.local` 应为 4。
 
 ### 2.4 装依赖 + 构建
 
@@ -183,13 +303,55 @@ certbot --nginx -d shuxueyst.dpdns.org -d www.shuxueyst.dpdns.org
 ls /etc/cron.d/certbot && certbot renew --dry-run
 ```
 
-### 2.7 防火墙
+### 2.7 防火墙 + 入侵防护（2026-09-28 加固，已实跑）
+
+> ⚠️ **先设自动回滚保险再动手** —— 防火墙/SSH 端口配错会切断自身连接。
+> 服务器没装 `at`，用 `systemd-run`：
+> ```bash
+> systemd-run --on-active=10min --unit=ufw-safety /usr/sbin/ufw disable
+> ```
+> 10 分钟内没确认成功会自动关掉 ufw，不会把自己锁死。
+> 确认一切正常后 `systemctl stop ufw-safety.timer` 取消（若已到期会自动消失）。
 
 ```bash
-ufw allow 80/tcp && ufw allow 443/tcp
-ufw allow 2537/tcp          # SSH 端口，建议改成非 22 并禁用密码登录
-ufw enable
+# 1) 配 ufw 规则（先不启用，预览确认 SSH 在列）
+ufw --force reset
+ufw default deny incoming
+ufw default allow outgoing
+ufw allow 22/tcp   comment "SSH-old"
+ufw allow 2537/tcp comment "SSH"
+ufw allow 80/tcp   comment "HTTP"
+ufw allow 443/tcp  comment "HTTPS"
+ufw show added          # 必须看到上面 4 条都在
+ufw --force enable
+
+# 2) fail2ban
+apt-get install -y fail2ban
+cat > /etc/fail2ban/jail.local <<'EOF'
+[DEFAULT]
+bantime  = 3600
+findtime = 600
+maxretry = 5
+ignoreip = 127.0.0.1/8 ::1
+
+[sshd]
+enabled = true
+# ⚠️ 所有 SSH 端口都写上，否则换端口后规则失效
+port    = 22,2537
+backend = systemd
+EOF
+systemctl enable --now fail2ban
+fail2ban-client status sshd    # 看 banned IP 列表
+
+# 3) 验证没错拦正常流量
+grep "UFW BLOCK" /var/log/ufw.log
+# 期望：全是扫描器（Telnet 23 / RabbitMQ 5672 / syslog 6514 / 挖矿 28080 等）
 ```
+
+**为什么保留 22 端口**：项目实测新机开机 38 分钟就被扫了 383 次（361 次来自单个 IP）。
+fail2ban 已能自动封禁，双端口则是网络层双保险 —— 万一某 ISP 封了 2537，22 还能用。
+**不推荐直接把 22 改成 2537**，要用 `sed` 在 `Port 22` 后面**追加** `Port 2537` 同时监听，
+实测新端口能登录后再决定是否移除旧端口。
 
 ### 2.8（可选）GitHub Deploy Key
 
@@ -210,6 +372,61 @@ cat /root/.ssh/id_ed25519.pub
 # 验证
 ssh -T git@github.com     # 应回 "Hi dxdxdxlm8/kecheng! ..."
 ```
+
+### 2.9 顺手检查项
+
+```bash
+chmod 600 /opt/kecheng/.env.local          # 644 的话同机任何用户可读 service_role key
+stat -c "%a %n" /root/.ssh/id_*            # 应为 600
+crontab -l; ls /etc/cron.d/                # 有没有遗漏的定时任务
+systemctl list-timers certbot.timer        # 证书续期
+grep -c "=" /opt/kecheng/.env.local        # 应为 4（环境变量键数核对）
+```
+
+---
+
+## 2.10 诊断：域名访问不了，是服务器还是本地？
+
+**⚠️ 头号陷阱：开发机的 `https_proxy` 会伪造 502。**
+
+2026-09-28 踩过：从开发机 `curl https://shuxueyst.dpdns.org/` 得到 **502 Bad Gateway**，
+一度误判为服务器故障，实际是本机代理拦截：
+```bash
+env | grep -i proxy
+# https_proxy=http://127.0.0.1:9024   ← 就是它
+```
+表现特征：curl -v 能看到 `CONNECT 域名:443` → `HTTP/1.1 502`；
+加 `--resolve 域名:443:<新机IP>` 反而变成 `000`（代理不认强制解析）。
+
+**正确诊断姿势：SSH 上服务器，让服务器自己去访问公网。**
+
+```bash
+ssh <新机>
+curl -s -o /dev/null -w 'HTTPS: %{http_code}\n' https://shuxueyst.dpdns.org/student/login
+curl -s -o /dev/null -w 'ssl_verify: %{ssl_verify_result}\n' https://shuxueyst.dpdns.org/   # 0 = 证书受信
+curl -s -o /dev/null -w 'localhost:5000 -> %{http_code}\n' http://127.0.0.1:5000/
+curl -sk -o /dev/null -w 'localhost:443 -> %{http_code}\n' -H 'Host: shuxueyst.dpdns.org' https://127.0.0.1/student/login
+```
+
+服务端 200 + 本地不通 = **本地网络/代理/DNS 缓存问题**。
+
+**其他现象速查**：
+
+| 现象 | 原因 |
+|---|---|
+| 纯 IP 访问 404 | `Host` 头不匹配任何 `server_name`，落到 `default_server` |
+| 纯 IP HTTPS 证书告警 | 证书 SAN 不含 IP，正常现象，只能域名访问 |
+| 改了 DNS 后还访问旧机 | 本地 DNS 缓存（`ipconfig /flushdns`）；或运营商 DNS 未跟上（对比 `nslookup 域名 8.8.8.8`） |
+| 域名 301 后跳到打不开的地址 | nginx 硬编码了域名跳转，而该域名还指向旧机 |
+
+**确认流量真的落到新机**（比看日志可靠）：
+
+```bash
+curl -s -o /dev/null "https://shuxueyst.dpdns.org/student/login?marker=UNIQUE123"
+grep UNIQUE123 /var/log/nginx/access.log
+```
+⚠️ 别依赖 `pm2 logs` —— 静态页面由 nginx 直出，不经过 Node，pm2 日志里看不到。
+另外 nginx 日志时区是 **+0800**（北京时间），与 pm2 日志的 UTC 不同。
 
 ---
 
@@ -296,6 +513,20 @@ curl -I https://shuxueyst.dpdns.org/        # 期望 200/302
    忘了改的表现是：新机一切正常，但用户访问的还是旧机，且证书签发失败。
 9. **Cloudflare 的 SSL/TLS 模式别用 Flexible**：配合 nginx 的 HTTP→HTTPS 跳转会重定向循环。
    用 Full / Full (Strict)，且源站要有 certbot 签的有效证书。
+10. **搬 Node 运行时别只搬 `/usr/bin/node`**（2026-09-28 踩过）：这台机的 node 不是 apt 装的，
+    而是散在 `/usr/bin/`（node/npm/npx/corepack/pnpm/pm2 全是 symlink）+ `/usr/lib/node_modules/`。
+    只搬 node 会导致 `npx: command not found`，构建直接失败。
+    **正确姿势**：`rsync -az old:/usr/bin/node /usr/bin/node` + `rsync -az old:/usr/lib/node_modules/{npm,corepack,pnpm,pm2} /usr/lib/node_modules/`，
+    再手工建 symlink（`npm`→`npm/bin/npm-cli.js`，`npx`→`npm/bin/npx-cli.js`，`corepack`→`corepack/dist/corepack.js`）。
+    验完 `node -v && npm -v && npx -v && pnpm -v && pm2 -v` 五个全有输出才算对。
+11. **rsync 跨机免密要显式指定 IdentityFile**（2026-09-28 踩过）：把新机公钥写进旧机
+    `authorized_keys` 后仍被拒，原因是旧机 `PubkeyAuthentication no`（要临时改成 yes），
+    且新机 `~/.ssh/id_ed25519` 被 GitHub Deploy Key 覆盖导致密钥不匹配。
+    建议**单独生成一把迁移专用密钥**（`ssh-keygen -f ~/.ssh/id_migrate`），在 `~/.ssh/config` 里
+    给旧机建别名并写 `IdentitiesOnly yes`，用完把旧机 sshd 配置和 authorized_keys 复原。
+12. **rsync 只搬符号链接不搬目标**（2026-09-28 踩过）：`/etc/nginx/sites-enabled/kecheng` 是
+    指向 `sites-available/kecheng` 的软链，单独 rsync 这个路径只会得到一个坏链接。
+    要连同 `sites-available/` 下的实际文件一起搬，并在新机确认没有 `sites-enabled/default` 抢占 80 端口。
 
 ---
 
