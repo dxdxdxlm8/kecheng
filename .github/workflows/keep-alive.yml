@@ -1,0 +1,22 @@
+name: Supabase Keep Alive
+
+on:
+  schedule:
+    # 每 3 天在 UTC 時間 12:00 執行一次（台灣時間 20:00）
+    - cron: '0 12 */3 * *'
+  workflow_dispatch: # 允許在網頁上手動按按鈕測試
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST API
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/")
+          echo "HTTP Status Code: $response"
+          if [ "$response" -ne 200 ] && [ "$response" -ne 404 ]; then
+            echo "Request might have failed, check configuration."
+          fi
